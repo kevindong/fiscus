@@ -1,0 +1,41 @@
+extends ../layout
+
+block content
+  .card.mb-3
+    .card-header Profile Information
+    .card-body
+      form.form-horizontal(method='POST', action='/account?_method=PUT')
+        .form-group
+          label.col-sm-3(for='email') Email
+          .col-sm-7
+            input.form-control(type='email', name='email', id='email', value=user.email)
+        .form-group
+          label.col-sm-3(for='name') Name
+          .col-sm-7
+            input.form-control(type='text', name='name', id='name', value=user.name)
+        .form-group
+          .col-sm-offset-3.col-sm-4
+            button.btn.btn-success(type='submit') Update Profile
+  .card.mb-3
+    .card-header Change Password
+    .card-body
+      form.form-horizontal(method='POST', action='/account?_method=PUT')
+        .form-group
+          label.col-sm-3(for='password') New Password
+          .col-sm-7
+            input.form-control(type='password', name='password', id='password')
+        .form-group
+          label.col-sm-3(for='confirm') Confirm Password
+          .col-sm-7
+            input.form-control(type='password', name='confirm', id='confirm')
+        .form-group
+          .col-sm-4.col-sm-offset-3
+            button.btn.btn-success(type='submit') Change Password
+  .card.mb-3
+    .card-header Delete Account
+    .card-body
+      form.form-horizontal(method='POST', action='/account?_method=DELETE')
+        .form-group
+          p.col-sm-offset-3.col-sm-9 You can delete your account, but keep in mind this action is irreversible.
+          .col-sm-offset-3.col-sm-9
+            button.btn.btn-danger(type='submit') Delete my account
