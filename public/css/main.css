@@ -1,0 +1,12 @@
+/* Navbar
+/* ------------------------- */
+
+.navbar {
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+li.nav-item.active {
+  border-bottom: 3px solid black;
+}

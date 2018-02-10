@@ -1,0 +1,23 @@
+extends ../layout
+
+block content
+  .card
+    .card-header Log In
+    .card-body
+      form(method='POST')
+        .form-group
+          label.control-label(for='email') Email
+          input.form-control(type='email', name='email', id='email', placeholder='Email', autofocus=true)
+        .form-group
+          label.control-label(for='password') Password
+          input.form-control(type='password', name='password', id='password', placeholder='Password')
+        .form-group
+          a(href='/forgot')
+            strong Forgot your password?
+        button.btn.btn-success(type='submit') Log in
+
+      .btn-toolbar.text-center
+  br
+  p.text-center Don't have an account?&nbsp;
+    a(href='/signup')
+      strong Sign up

@@ -1,0 +1,27 @@
+nav.navbar.navbar-expand-lg.navbar-light
+  a.navbar-brand(href="/") Fiscus
+  button.navbar-toggler(type="button", data-toggle="collapse", data-target="#navbar", aria-controls="navbar", aria-expanded="false", aria-label="Toggle Navigation")
+    span.navbar-toggler-icon
+
+  .collapse.navbar-collapse(id="navbar")
+    ul.navbar-nav.mr-auto
+      li.nav-item(class=(title == 'Home') ? 'active' : null)
+        a.nav-link(href='/') Home
+      li.nav-item
+        a.nav-link(href='/') TBD1
+      li.nav-item
+        a.nav-link(href='/') TBD2
+      li.nav-item
+        a.nav-link(href='/') TBD3
+    ul.navbar-nav
+      if user
+        li.nav-item.dropdown
+          a.nav-link.dropdown-toggle(href="#", id="accountDropdown", data-toggle="dropdown", aria-haspopups="true", aria-expanded="false") Account
+          .dropdown-menu(aria-labelledby="accountDropdown")
+            a.dropdown-item(href="/account") My Account
+            a.dropdown-item(href="/logout") Logout
+      else
+        li.nav-item(class=(title == 'Log in') ? 'active' : null)
+          a.nav-link(href='/login') Log in
+        li.nav-item(class=(title == 'Sign up') ? 'active' : null)
+          a.nav-link(href='/signup') Sign up

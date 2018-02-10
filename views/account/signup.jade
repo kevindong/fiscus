@@ -1,0 +1,23 @@
+extends ../layout
+
+block content
+  .card
+    .card-header Create An Account
+    .card-body
+      form(method='POST')
+        .form-group
+          label(for='name') Name
+          input.form-control(type='text', name='name', id='name', placeholder='Name', autofocus=true)
+        .form-group
+          label(for='email') Email
+          input.form-control(type='email', name='email', id='email', placeholder='Email')
+        .form-group
+          label(for='password') Password
+          input.form-control(type='password', name='password', id='password', placeholder='Password')
+        button.btn.btn-success(type='submit') Create an account
+
+      .btn-toolbar.text-center
+  br
+  p.text-center Already have an account?&nbsp;
+    a(href='/login')
+      strong Log in

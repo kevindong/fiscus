@@ -1,0 +1,12 @@
+extends ../layout
+
+block content
+  .card
+    .card-header Forgot Password
+    .card-body
+      form(method='POST')
+        .form-group
+          p Enter your email address below and we'll send you password reset instructions.
+          label(for='email') Email
+          input.form-control(type='email', name='email', id='email', placeholder='Email', autofocus=true)
+        button.btn.btn-success(type='submit') Reset Password
