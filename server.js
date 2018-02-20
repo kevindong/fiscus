@@ -16,6 +16,7 @@ dotenv.load();
 // Controllers
 var HomeController = require('./controllers/home');
 var userController = require('./controllers/user');
+var splashController = require('./controllers/splash');
 
 // Passport OAuth strategies
 require('./config/passport');
@@ -41,7 +42,8 @@ app.use(function(req, res, next) {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', HomeController.index);
+app.get('/', splashController.index);
+//app.get('/home', HomeController.index);
 app.get('/account', userController.ensureAuthenticated, userController.accountGet);
 app.put('/account', userController.ensureAuthenticated, userController.accountPut);
 app.delete('/account', userController.ensureAuthenticated, userController.accountDelete);
@@ -56,6 +58,7 @@ app.get('/reset/:token', userController.resetGet);
 app.post('/reset/:token', userController.resetPost);
 app.get('/logout', userController.logout);
 app.get('/unlink/:provider', userController.ensureAuthenticated, userController.unlink);
+
 
 // Production error handler
 if (app.get('env') === 'production') {
