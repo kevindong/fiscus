@@ -42,6 +42,7 @@ app.use(function (req, res, next) {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
+
 // Boilerplate routes
 app.get('/', splashController.index);
 app.get('/account', userController.ensureAuthenticated, userController.accountGet);
@@ -58,6 +59,7 @@ app.get('/reset/:token', userController.resetGet);
 app.post('/reset/:token', userController.resetPost);
 app.get('/logout', userController.logout);
 app.get('/unlink/:provider', userController.ensureAuthenticated, userController.unlink);
+
 
 // Admin console routes
 app.get('/admin', adminController.ensureAuthenticated, adminController.index);
