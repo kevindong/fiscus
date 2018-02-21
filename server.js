@@ -16,6 +16,7 @@ dotenv.load();
 // Controllers
 var adminController = require('./controllers/admin');
 var userController = require('./controllers/user');
+var tickerController = require('./controllers/ticker');
 var splashController = require('./controllers/splash');
 
 // Passport OAuth strategies
@@ -59,6 +60,9 @@ app.get('/reset/:token', userController.resetGet);
 app.post('/reset/:token', userController.resetPost);
 app.get('/logout', userController.logout);
 app.get('/unlink/:provider', userController.ensureAuthenticated, userController.unlink);
+app.get('/ticker/details/:ticker', tickerController.tickerDetailsGet);
+app.get('/ticker/lookup', tickerController.lookupTickerGet);
+
 
 
 // Admin console routes

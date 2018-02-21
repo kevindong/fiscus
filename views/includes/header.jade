@@ -1,6 +1,6 @@
 nav.navbar.navbar-expand-lg.navbar-light
   a.navbar-brand(href="/")
-    img.d-inline-block.align-middle(src="/img/logo.svg", alt="Fiscus" height="40px")
+    img.d-inline-block.align-middle(src="/img/logo.svg", alt="Fiscus" height="33px")
     | &nbsp;
     | Fiscus
   button.navbar-toggler(type="button", data-toggle="collapse", data-target="#navbar", aria-controls="navbar", aria-expanded="false", aria-label="Toggle Navigation")
@@ -16,6 +16,8 @@ nav.navbar.navbar-expand-lg.navbar-light
         a.nav-link(href='/') TBD2
       li.nav-item
         a.nav-link(href='/') TBD3
+      li.nav-item
+        select#search-bar
     ul.navbar-nav
       if user && user.isAdmin
         li.nav-item(class=(title == 'Admin') ? 'active' : null)

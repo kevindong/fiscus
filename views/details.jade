@@ -1,0 +1,110 @@
+extends layout
+
+block content
+    .row
+        .col-md-1.details-img
+            img(src=logoUrl, style={height: '3.5rem', width: '3.5rem'})
+        .col-md-11
+            h3 #{name} - $#{formatMoney(lastPrice)}, 
+                if (change > 0)
+                    span(style={color:'#4CAF50'}) #{changeFormatted} (#{percentChangeFormatted})
+                else if (change < 0)
+                    span(style={color:'#F44336'}) #{changeFormatted} (#{percentChangeFormatted})
+                else
+                    span(style={color:'#9E9E9E'}) #{changeFormatted} (#{percentChangeFormatted})
+            h5.text-muted #{exchange}: #{ticker}
+    .row
+        .col-md-12
+            hr
+            p(style={height: "50vh"}) Graph goes here
+    .row
+        .col-md-6
+            .card(style={margin: '10px 0 10px 0'})
+                    .card-body
+                        h5.card-title Market Data
+                        hr
+                        table.card-text.w-100
+                            tbody
+                                tr
+                                    td Open
+                                    td.text-right $#{formatMoney(open)}
+                                tr
+                                    td High
+                                    td.text-right $#{formatMoney(high)}
+                                tr
+                                    td Low
+                                    td.text-right $#{formatMoney(low)}
+                                tr
+                                    td Beta
+                                    td.text-right #{keyStats.beta}
+                                tr
+                                    td 52 Week High
+                                    td.text-right $#{formatMoney(keyStats.week52high)}
+                                tr
+                                    td 52 Week Low
+                                    td.text-right $#{formatMoney(keyStats.week52low)}
+                                tr
+                                    td Market Capitalization
+                                    td.text-right $#{formatMoney(keyStats.marketcap)}
+                                
+        .col-md-6
+            .card(style={margin: '10px 0 10px 0'})
+                    .card-body
+                        h5.card-title Financials (Quarterly)
+                        h6.card-subtitle.text-muted Last reported: #{financials.reportDate}
+                        hr
+                        table.card-text.w-100
+                            tbody
+                                tr
+                                    td Revenue
+                                    td.text-right $#{formatMoney(financials.totalRevenue)}
+                                tr
+                                    td Operating Revenue
+                                    td.text-right $#{formatMoney(financials.operatingRevenue)}
+                                tr
+                                    td Cost of Revenue
+                                    td.text-right $#{formatMoney(financials.costOfRevenue)}
+                                tr
+                                    td Net Income
+                                    td.text-right $#{formatMoney(financials.netIncome)}
+                                tr
+                                    td Operating Income
+                                    td.text-right $#{formatMoney(financials.operatingIncome)}
+                                tr
+                                    td Operating Expenses
+                                    td.text-right $#{formatMoney(financials.operatingExpense)}
+                                tr
+                                    td Total Assets
+                                    td.text-right $#{formatMoney(financials.totalAssets)}
+                                tr
+                                    td Total Liabilities
+                                    td.text-right $#{formatMoney(financials.totalLiabilities)}
+                                tr
+                                    td Total Cash
+                                    td.text-right $#{formatMoney(financials.totalCash)}
+                                tr
+                                    td Total Debt
+                                    td.text-right $#{formatMoney(financials.totalDebt)}
+                                tr
+                                    td Cash Flow
+                                    td.text-right $#{formatMoney(financials.cashFlow)}
+    .row
+        .col-md-12
+            h3 News about #{ticker}
+            hr
+    .row
+        each article in news
+            .col-md-4
+                .card(style={margin: '10px 0 10px 0'})
+                    .card-body
+                        h5.card-title 
+                            a(style={color: 'inherit'},href=article.url) #{article.headline}
+                        h6.card-subtitle.text-muted #{article.datetime.substring(0,10)}
+                        hr
+                        p.card-text #{article.summary}
+                        a.card-link(href=article.url) Link to article
+
+                
+                
+
+
