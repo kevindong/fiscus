@@ -33,7 +33,8 @@ exports.index = function(req, res) {
         nsdqClose: parseFloat(data.nsdqCurrData[closeRef]).toFixed(2),
         djia: chgData.djiaPctChng.toFixed(2) + '%',
         djiaChg: chgData.djiaChng.toFixed(2),
-        djiaClose: parseFloat(data.djiaCurrData[closeRef]).toFixed(2)
+        djiaClose: parseFloat(data.djiaCurrData[closeRef]).toFixed(2),
+        dataLoad: true
       });
 
     } else {
@@ -48,12 +49,25 @@ exports.index = function(req, res) {
         djia: '0.00%',
         djiaChg: '0.00',
         djiaClose: parseFloat(data.djiaCurrData[closeRef]).toFixed(2),
+        dataLoad: true
       });
     }
   }).catch(function(err) {
     console.log(err);
-    res.status(400);
-    res.send(err);
+
+    res.render('splash', {
+      title: 'Splash',
+      sp: '0.00%',
+      spChg: '0.00',
+      spClose: '-- --',
+      nsdq: '0.00%',
+      nsdqChg: '0.00',
+      nsdqClose: '-- --',
+      djia: '0.00%',
+      djiaChg: '0.00',
+      djiaClose: '-- --',
+      dataLoad: false
+    });
   });
 
 };

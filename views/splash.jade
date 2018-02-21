@@ -12,8 +12,8 @@ block content
                     if spChg > 0
                         .col-6
                             h3 #[strong S&P 500]
-                            h2(style={color:'#8BC34A'}).align-self-end #{spClose}
-                            h6(style={color: '#8BC34A'}).mt-0.align-self-end +#{spChg} (+#{sp})
+                            h2(style={color:'#4CAF50'}).align-self-end #{spClose}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{spChg} (+#{sp})
                         img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
 
                     else if spChg < 0
@@ -34,8 +34,8 @@ block content
                     if djiaChg > 0
                         .col-6
                             h3 #[strong DOW]
-                            h2(style={color: '#8BC34A'}).align-self-end #{djiaClose}
-                            h6(style={color: '#8BC34A'}).mt-0.align-self-end +#{djiaChg} (+#{djia})
+                            h2(style={color: '#4CAF50'}).align-self-end #{djiaClose}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{djiaChg} (+#{djia})
                         img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
 
                     else if djiaChg < 0
@@ -57,8 +57,8 @@ block content
                     if nsdqChg > 0
                         .col-6
                             h3 #[strong NASDAQ]
-                            h2(style={color: '#8BC34A'}).align-self-end #{nsdqClose}
-                            h6(style={color: '#8BC34A'}).mt-0.align-self-end +#{nsdqChg} (+#{nsdq})
+                            h2(style={color: '#4CAF50'}).align-self-end #{nsdqClose}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{nsdqChg} (+#{nsdq})
                         img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
 
                     else if nsdqChg < 0
@@ -76,3 +76,6 @@ block content
 
         br
         br
+
+        if dataLoad == false
+            p(style={'text-align': 'center'}) Market Data Failed to Load - Please Reload in a Moment
