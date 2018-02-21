@@ -1,11 +1,14 @@
 nav.navbar.navbar-expand-lg.navbar-light
-  a.navbar-brand(href="/") Fiscus
+  a.navbar-brand(href="/")
+    img.d-inline-block.align-middle(src="/img/logo.svg", alt="Fiscus" height="40px")
+    | &nbsp;
+    | Fiscus
   button.navbar-toggler(type="button", data-toggle="collapse", data-target="#navbar", aria-controls="navbar", aria-expanded="false", aria-label="Toggle Navigation")
     span.navbar-toggler-icon
 
   .collapse.navbar-collapse(id="navbar")
     ul.navbar-nav.mr-auto
-      li.nav-item(class=(title == 'Home') ? 'active' : null)
+      li.nav-item(class=(title == 'Splash') ? 'active' : null)
         a.nav-link(href='/') Home
       li.nav-item
         a.nav-link(href='/') TBD1
@@ -14,6 +17,9 @@ nav.navbar.navbar-expand-lg.navbar-light
       li.nav-item
         a.nav-link(href='/') TBD3
     ul.navbar-nav
+      if user && user.isAdmin
+        li.nav-item(class=(title == 'Admin') ? 'active' : null)
+          a.nav-link(href='/admin') Admin Console
       if user
         li.nav-item.dropdown
           a.nav-link.dropdown-toggle(href="#", id="accountDropdown", data-toggle="dropdown", aria-haspopups="true", aria-expanded="false") Account

@@ -1,0 +1,103 @@
+extends layout
+
+block content
+    .h3 Users
+    br
+    p These are all the users listed in the database. Click the button under "email" to send an email to a specific user. Click the button under "ban" to suspend or restore a user's account.
+    table.table.table-bordered.table-hover.table-responsive
+        thead
+            tr
+                th ID
+                th Name
+                th Email
+                th Confirmed
+                th Admin
+                th Ban
+                th Delete
+        tbody
+            each user in users
+                tr
+                    th.align-middle(scope='row') #{user.id}
+                    td.align-middle #{user.name}
+                    td.align-middle
+                        // Email specific user
+                        button.btn.btn-primary(type='button', data-toggle='modal', data-target='#emailModal'+user.id)
+                            | #{user.email}
+                        div.modal.fade(id='emailModal'+user.id, tabindex='-1', role='dialog', aria-labelledby='emailModalLabel', aria-hidden='true')
+                            .modal-dialog(role='document')
+                                .modal-content
+                                    form(method='POST' action='/admin/email/'+user.email)
+                                        .modal-header
+                                            h5.modal-title(id='emailModalLabel'+user.id) Email specific user
+                                            button.close(type='button', data-dismiss='modal', aria-label='Close')
+                                                span(aria-hidden='true') ×
+                                        .modal-body
+                                            .form-group
+                                                label(for='subject') Recipient
+                                                input.form-control(type='text', name='recipient', id='recipient', value=user.email, disabled)
+                                            .form-group
+                                                label(for='subject') Subject
+                                                input.form-control(type='text', name='subject', id='subject', placeholder='Subject', autofocus=true)
+                                            .form-group
+                                                label(for='text') Text
+                                                textarea.form-control(name='text', id='text', placeholder='Text...')
+                                        .modal-footer
+                                            button.btn.btn-secondary(type='button', data-dismiss='modal') Close
+                                            button.btn.btn-success(type='submit') Send
+                    td.align-middle #{user.isConfirmed}
+                    td.align-middle #{user.isAdmin}
+                    td.align-middle
+                            if user.isBanned
+                                form(action="/admin/unbanUser", method="post")
+                                    input(type="hidden", name="userId", value=user.id)
+                                    input.btn.btn-success(type='submit', value="Unban")
+                            else
+                                form(action="/admin/banUser", method="post")
+                                    input.hidden(type="hidden", name="userId", value=user.id)
+                                    input.btn.btn-danger(type="submit", value="Ban")
+                    td.align-middle
+                        form(action="/admin/deleteUser", method="post")        
+                            input.hidden(type="hidden", name="userId", value=user.id)
+                            input.btn.btn-danger(type="submit", value="Delete")
+    br
+    .h3 Options
+    br
+    p The "email all users" button allows you to draft an email which will be sent to all users in the database. The "reset all passwords" button will send an email to all users asking them to reset their passwords.
+    // Email all users
+    button.btn.btn-primary(type='button', data-toggle='modal', data-target='#emailAllModal')
+        | Email all users
+    #emailAllModal.modal.fade(tabindex='-1', role='dialog', aria-labelledby='emailAllModalLabel', aria-hidden='true')
+        .modal-dialog(role='document')
+            .modal-content
+                form(method='POST' action='/admin/emailAll')
+                    .modal-header
+                        h5#emailAllModalLabel.modal-title Email all users
+                        button.close(type='button', data-dismiss='modal', aria-label='Close')
+                            span(aria-hidden='true') ×
+                    .modal-body
+                        .form-group
+                            label(for='subject') Subject
+                            input.form-control(type='text', name='subject', id='subject', placeholder='Subject', autofocus=true)
+                        .form-group
+                            label(for='text') Text
+                            textarea.form-control(name='text', id='text', placeholder='Text...')
+                    .modal-footer
+                        button.btn.btn-secondary(type='button', data-dismiss='modal') Close
+                        button.btn.btn-success(type='submit') Send
+    | &nbsp;
+    // Reset all passwords
+    button.btn.btn-danger(type='button', data-toggle='modal', data-target='#resetModal')
+        | Reset all passwords
+    #resetModal.modal.fade(tabindex='-1', role='dialog', aria-labelledby='resetModalLabel', aria-hidden='true')
+        .modal-dialog(role='document')
+            .modal-content
+                form(method='POST' action='/admin/resetAll')
+                    .modal-header
+                        h5#resetModalLabel.modal-title Reset all passwords
+                        button.close(type='button', data-dismiss='modal', aria-label='Close')
+                            span(aria-hidden='true') ×
+                    .modal-body
+                        p Warning: this will invalidate all users passwords. Are you sure you want to continue?
+                    .modal-footer
+                        button.btn.btn-secondary(type='button', data-dismiss='modal') Close
+                        button.btn.btn-primary(type='submit') Yes
