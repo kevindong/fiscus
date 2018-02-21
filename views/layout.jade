@@ -7,8 +7,11 @@ html
     title= title
     link(rel='stylesheet', href='/css/vendor/bootstrap.css')
     link(rel='stylesheet', href='/css/main.css')
+    link(rel='stylesheet', href='/css/vendor/fa.css')
+    link(rel='stylesheet', href='/css/vendor/select2.min.css')
+    link(rel='stylesheet', href='/css/vendor/select2-bootstrap4.min.css')
   body
-    .container
+    .container(style={'max-width': '1300px'})
       include includes/header
       hr.mt-0
       include includes/alerts
@@ -19,5 +22,5 @@ html
     script(src='/js/lib/jquery.js')
     script(src='/js/lib/popper.js')
     script(src='/js/lib/bootstrap.js')
-
+    script(src='https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js')
     script(src='/js/main.js')

@@ -1,3 +1,18 @@
 $(function() {
-  // Your custom JavaScript goes here
+  $('#search-bar').select2({
+    theme: 'bootstrap4',
+    width: '15rem',
+    placeholder: 'Search for a stock',
+    ajax: {
+      url: '/ticker/lookup',
+      dataType: 'json',
+      data: function(params) {
+        return { text: params.term };
+      }
+    }
+  });
+  $('#search-bar').on('select2:select', function(e) {
+    const data = e.params.data;
+    $(location).attr('href', `${window.location.origin}/ticker/details/${data.id}`)
+  })
 });
