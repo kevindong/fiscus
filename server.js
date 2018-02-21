@@ -14,7 +14,7 @@ var passport = require('passport');
 dotenv.load();
 
 // Controllers
-var HomeController = require('./controllers/home');
+var adminController = require('./controllers/admin');
 var userController = require('./controllers/user');
 var splashController = require('./controllers/splash');
 
@@ -36,14 +36,14 @@ app.use(session({ secret: process.env.SESSION_SECRET, resave: true, saveUninitia
 app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   res.locals.user = req.user ? req.user.toJSON() : null;
   next();
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Boilerplate routes
 app.get('/', splashController.index);
-//app.get('/home', HomeController.index);
 app.get('/account', userController.ensureAuthenticated, userController.accountGet);
 app.put('/account', userController.ensureAuthenticated, userController.accountPut);
 app.delete('/account', userController.ensureAuthenticated, userController.accountDelete);
@@ -59,16 +59,24 @@ app.post('/reset/:token', userController.resetPost);
 app.get('/logout', userController.logout);
 app.get('/unlink/:provider', userController.ensureAuthenticated, userController.unlink);
 
+// Admin console routes
+app.get('/admin', adminController.ensureAuthenticated, adminController.index);
+app.post('/admin/banUser', adminController.ensureAuthenticated, adminController.banUser);
+app.post('/admin/unbanUser', adminController.ensureAuthenticated, adminController.unbanUser);
+app.post('/admin/deleteUser', adminController.ensureAuthenticated, adminController.deleteUser);
+app.post('/admin/email/:user_email', adminController.ensureAuthenticated, adminController.emailUser);
+app.post('/admin/emailAll', adminController.ensureAuthenticated, adminController.emailAll);
+app.post('/admin/resetAll', adminController.ensureAuthenticated, adminController.resetAll);
 
 // Production error handler
 if (app.get('env') === 'production') {
-  app.use(function(err, req, res, next) {
+  app.use(function (err, req, res, next) {
     console.error(err.stack);
     res.sendStatus(err.status || 500);
   });
 }
 
-app.listen(app.get('port'), function() {
+app.listen(app.get('port'), function () {
   console.log('Express server listening on port ' + app.get('port'));
 });
 

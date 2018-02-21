@@ -7,18 +7,21 @@ var User = require('../models/User');
 /**
  * Login required middleware
  */
-exports.ensureAuthenticated = function(req, res, next) {
-  if (req.isAuthenticated()) {
-    next();
-  } else {
+exports.ensureAuthenticated = function (req, res, next) {
+  if (!req.isAuthenticated()) {
     res.redirect('/login');
+  } else if (req.user['attributes']['isBanned']) {
+    req.flash('error', { msg: 'Your account has been suspended.' });
+    res.redirect('/login');
+  } else {
+    next();
   }
 };
 
 /**
  * GET /login
  */
-exports.loginGet = function(req, res) {
+exports.loginGet = function (req, res) {
   if (req.user) {
     return res.redirect('/');
   }
@@ -30,7 +33,7 @@ exports.loginGet = function(req, res) {
 /**
  * POST /login
  */
-exports.loginPost = function(req, res, next) {
+exports.loginPost = function (req, res, next) {
   req.assert('email', 'Email is not valid').isEmail();
   req.assert('email', 'Email cannot be blank').notEmpty();
   req.assert('password', 'Password cannot be blank').notEmpty();
@@ -43,12 +46,12 @@ exports.loginPost = function(req, res, next) {
     return res.redirect('/login');
   }
 
-  passport.authenticate('local', function(err, user, info) {
+  passport.authenticate('local', function (err, user, info) {
     if (!user) {
       req.flash('error', info);
       return res.redirect('/login')
     }
-    req.logIn(user, function(err) {
+    req.logIn(user, function (err) {
       res.redirect('/');
     });
   })(req, res, next);
@@ -57,7 +60,7 @@ exports.loginPost = function(req, res, next) {
 /**
  * GET /logout
  */
-exports.logout = function(req, res) {
+exports.logout = function (req, res) {
   req.logout();
   res.redirect('/');
 };
@@ -65,7 +68,7 @@ exports.logout = function(req, res) {
 /**
  * GET /signup
  */
-exports.signupGet = function(req, res) {
+exports.signupGet = function (req, res) {
   if (req.user) {
     return res.redirect('/');
   }
@@ -77,20 +80,20 @@ exports.signupGet = function(req, res) {
 /**
  * GET /confirm/:token
  */
-exports.confirmGet = function(req, res) {
+exports.confirmGet = function (req, res) {
   if (req.user || !req.params.token) {
     return res.redirect('/');
   }
   const user = new User({ emailToken: req.params.token })
     .fetch()
-    .then(function(user) {
+    .then(function (user) {
       user.save({ isConfirmed: true }, { patch: true })
-      req.logIn(user, function(err) {
+      req.logIn(user, function (err) {
         req.flash('info', { msg: 'You\'ve successfully confirmed your account.' });
         res.redirect('/');
       })
     })
-    .catch(function(err) {
+    .catch(function (err) {
       req.flash('error', { msg: 'There was a problem confirming your account.' });
       return res.redirect('/')
     });
@@ -99,7 +102,7 @@ exports.confirmGet = function(req, res) {
 /**
  * POST /signup
  */
-exports.signupPost = function(req, res, next) {
+exports.signupPost = function (req, res, next) {
   req.assert('name', 'Name cannot be blank').notEmpty();
   req.assert('email', 'Email is not valid').isEmail();
   req.assert('email', 'Email cannot be blank').notEmpty();
@@ -123,32 +126,32 @@ exports.signupPost = function(req, res, next) {
     isBanned: false,
     isConfirmed: false
   }).save()
-    .then(function(user) {
-        //Send the verification email
-        var transporter = nodemailer.createTransport({
-          service: 'Mailgun',
-          auth: {
-            user: process.env.MAILGUN_USERNAME,
-            pass: process.env.MAILGUN_PASSWORD
-          }
-        });
-        var mailOptions = {
-          to: user.attributes.email,
-          from: 'noreply-fiscus@purdue.edu',
-          subject: 'Confirm your account on Fiscus',
-          text: `Please confirm your account by visiting http://${req.headers.host}/confirm/${encodeURIComponent(emailAuthToken)}. Welcome to Fiscus! 💰💰💰`
-        };
-        transporter.sendMail(mailOptions, function(err) {
-          if (err) {
-            console.error(err);
-            req.flash('error', { msg: 'There was an error sending your email.' });
-            return res.redirect('/');
-          }
-          req.flash('info', { msg: `An email has been sent to ${user.attributes.email} with further instructions.` });
-          res.redirect('/');
-        });
+    .then(function (user) {
+      //Send the verification email
+      var transporter = nodemailer.createTransport({
+        service: 'Mailgun',
+        auth: {
+          user: process.env.MAILGUN_USERNAME,
+          pass: process.env.MAILGUN_PASSWORD
+        }
+      });
+      var mailOptions = {
+        to: user.attributes.email,
+        from: 'noreply-fiscus@purdue.edu',
+        subject: 'Confirm your account on Fiscus',
+        text: `Please confirm your account by visiting http://${req.headers.host}/confirm/${encodeURIComponent(emailAuthToken)}. Welcome to Fiscus! 💰💰💰`
+      };
+      transporter.sendMail(mailOptions, function (err) {
+        if (err) {
+          console.error(err);
+          req.flash('error', { msg: 'There was an error sending your email.' });
+          return res.redirect('/');
+        }
+        req.flash('info', { msg: `An email has been sent to ${user.attributes.email} with further instructions.` });
+        res.redirect('/');
+      });
     })
-    .catch(function(err) {
+    .catch(function (err) {
       if (err.code === 'ER_DUP_ENTRY' || err.code === '23505') {
         req.flash('error', { msg: 'The email address you have entered is already associated with another account.' });
         return res.redirect('/signup');
@@ -163,7 +166,7 @@ exports.signupPost = function(req, res, next) {
 /**
  * GET /account
  */
-exports.accountGet = function(req, res) {
+exports.accountGet = function (req, res) {
   res.render('account/profile', {
     title: 'My Account'
   });
@@ -173,7 +176,7 @@ exports.accountGet = function(req, res) {
  * PUT /account
  * Update profile information OR change password.
  */
-exports.accountPut = function(req, res, next) {
+exports.accountPut = function (req, res, next) {
   if ("password" in req.body) {
     req
       .assert("password", "Password must be at least 4 characters long")
@@ -228,8 +231,8 @@ exports.accountPut = function(req, res, next) {
 /**
  * DELETE /account
  */
-exports.accountDelete = function(req, res, next) {
-  new User({ id: req.user.id }).destroy().then(function(user) {
+exports.accountDelete = function (req, res, next) {
+  new User({ id: req.user.id }).destroy().then(function (user) {
     req.logout();
     req.flash('info', { msg: 'Your account has been permanently deleted.' });
     res.redirect('/');
@@ -239,10 +242,10 @@ exports.accountDelete = function(req, res, next) {
 /**
  * GET /unlink/:provider
  */
-exports.unlink = function(req, res, next) {
+exports.unlink = function (req, res, next) {
   new User({ id: req.user.id })
     .fetch()
-    .then(function(user) {
+    .then(function (user) {
       switch (req.params.provider) {
         case 'facebook':
           user.set('facebook', null);
@@ -257,12 +260,12 @@ exports.unlink = function(req, res, next) {
           user.set('vk', null);
           break;
         default:
-        req.flash('error', { msg: 'Invalid OAuth Provider' });
-        return res.redirect('/account');
+          req.flash('error', { msg: 'Invalid OAuth Provider' });
+          return res.redirect('/account');
       }
-      user.save(user.changed, { patch: true }).then(function() {
-      req.flash('success', { msg: 'Your account has been unlinked.' });
-      res.redirect('/account');
+      user.save(user.changed, { patch: true }).then(function () {
+        req.flash('success', { msg: 'Your account has been unlinked.' });
+        res.redirect('/account');
       });
     });
 };
@@ -270,7 +273,7 @@ exports.unlink = function(req, res, next) {
 /**
  * GET /forgot
  */
-exports.forgotGet = function(req, res) {
+exports.forgotGet = function (req, res) {
   if (req.isAuthenticated()) {
     return res.redirect('/');
   }
@@ -282,7 +285,7 @@ exports.forgotGet = function(req, res) {
 /**
  * POST /forgot
  */
-exports.forgotPost = function(req, res, next) {
+exports.forgotPost = function (req, res, next) {
   req.assert('email', 'Email is not valid').isEmail();
   req.assert('email', 'Email cannot be blank').notEmpty();
   req.sanitize('email').normalizeEmail({ remove_dots: false });
@@ -295,28 +298,28 @@ exports.forgotPost = function(req, res, next) {
   }
 
   async.waterfall([
-    function(done) {
-      crypto.randomBytes(16, function(err, buf) {
+    function (done) {
+      crypto.randomBytes(16, function (err, buf) {
         var token = buf.toString('hex');
         done(err, token);
       });
     },
-    function(token, done) {
+    function (token, done) {
       new User({ email: req.body.email })
         .fetch()
-        .then(function(user) {
+        .then(function (user) {
           if (!user) {
-        req.flash('error', { msg: 'The email address ' + req.body.email + ' is not associated with any account.' });
-        return res.redirect('/forgot');
+            req.flash('error', { msg: 'The email address ' + req.body.email + ' is not associated with any account.' });
+            return res.redirect('/forgot');
           }
           user.set('passwordResetToken', token);
           user.set('passwordResetExpires', new Date(Date.now() + 3600000)); // expire in 1 hour
-          user.save(user.changed, { patch: true }).then(function() {
+          user.save(user.changed, { patch: true }).then(function () {
             done(null, token, user.toJSON());
           });
         });
     },
-    function(token, user, done) {
+    function (token, user, done) {
       var transporter = nodemailer.createTransport({
         service: 'Mailgun',
         auth: {
@@ -329,11 +332,11 @@ exports.forgotPost = function(req, res, next) {
         from: 'noreply-fiscus@purdue.edu',
         subject: 'Reset your password on Fiscus',
         text: 'You are receiving this email because you (or someone else) have requested the reset of the password for your account.\n\n' +
-        'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
-        'http://' + req.headers.host + '/reset/' + token + '\n\n' +
-        'If you did not request this, please ignore this email and your password will remain unchanged.\n'
+          'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
+          'http://' + req.headers.host + '/reset/' + token + '\n\n' +
+          'If you did not request this, please ignore this email and your password will remain unchanged.\n'
       };
-      transporter.sendMail(mailOptions, function(err) {
+      transporter.sendMail(mailOptions, function (err) {
         req.flash('info', { msg: 'An email has been sent to ' + user.email + ' with further instructions.' });
         res.redirect('/forgot');
       });
@@ -344,14 +347,14 @@ exports.forgotPost = function(req, res, next) {
 /**
  * GET /reset
  */
-exports.resetGet = function(req, res) {
+exports.resetGet = function (req, res) {
   if (req.isAuthenticated()) {
     return res.redirect('/');
   }
   new User({ passwordResetToken: req.params.token })
     .where('passwordResetExpires', '>', new Date())
     .fetch()
-    .then(function(user) {
+    .then(function (user) {
       if (!user) {
         req.flash('error', { msg: 'Password reset token is invalid or has expired.' });
         return res.redirect('/forgot');
@@ -365,7 +368,7 @@ exports.resetGet = function(req, res) {
 /**
  * POST /reset
  */
-exports.resetPost = function(req, res, next) {
+exports.resetPost = function (req, res, next) {
   req.assert('password', 'Password must be at least 4 characters long').len(4);
   req.assert('confirm', 'Passwords must match').equals(req.body.password);
 
@@ -377,26 +380,26 @@ exports.resetPost = function(req, res, next) {
   }
 
   async.waterfall([
-    function(done) {
+    function (done) {
       new User({ passwordResetToken: req.params.token })
         .where('passwordResetExpires', '>', new Date())
         .fetch()
-        .then(function(user) {
+        .then(function (user) {
           if (!user) {
-          req.flash('error', { msg: 'Password reset token is invalid or has expired.' });
-          return res.redirect('back');
+            req.flash('error', { msg: 'Password reset token is invalid or has expired.' });
+            return res.redirect('back');
           }
           user.set('password', req.body.password);
           user.set('passwordResetToken', null);
           user.set('passwordResetExpires', null);
-          user.save(user.changed, { patch: true }).then(function() {
-          req.logIn(user, function(err) {
-            done(err, user.toJSON());
-          });
+          user.save(user.changed, { patch: true }).then(function () {
+            req.logIn(user, function (err) {
+              done(err, user.toJSON());
+            });
           });
         });
     },
-    function(user, done) {
+    function (user, done) {
       var transporter = nodemailer.createTransport({
         service: 'Mailgun',
         auth: {
@@ -409,9 +412,9 @@ exports.resetPost = function(req, res, next) {
         to: user.email,
         subject: 'Your Fiscus password has been changed',
         text: 'Hello,\n\n' +
-        'This is a confirmation that the password for your account ' + user.email + ' has just been changed.\n'
+          'This is a confirmation that the password for your account ' + user.email + ' has just been changed.\n'
       };
-      transporter.sendMail(mailOptions, function(err) {
+      transporter.sendMail(mailOptions, function (err) {
         req.flash('success', { msg: 'Your password has been changed successfully.' });
         res.redirect('/account');
       });
