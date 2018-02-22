@@ -59,7 +59,6 @@ app.post('/forgot', userController.forgotPost);
 app.get('/reset/:token', userController.resetGet);
 app.post('/reset/:token', userController.resetPost);
 app.get('/logout', userController.logout);
-app.get('/unlink/:provider', userController.ensureAuthenticated, userController.unlink);
 app.get('/ticker/details/:ticker', tickerController.tickerDetailsGet);
 app.get('/ticker/lookup', tickerController.lookupTickerGet);
 
