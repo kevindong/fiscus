@@ -128,6 +128,13 @@ exports.iexQuoteGet = async function(ticker) {
     });
 }
 
+/*
+ * Used to format money in the view
+ * Returns '-' if money is null/undefined
+ * This allows the API to have null entries for some values
+ */
 const formatMoney = function(money) {
+    if (!money)
+        return '?';
     return money.toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');
 };
