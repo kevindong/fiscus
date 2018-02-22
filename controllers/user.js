@@ -139,7 +139,7 @@ exports.signupPost = function (req, res, next) {
         to: user.attributes.email,
         from: 'noreply-fiscus@purdue.edu',
         subject: 'Confirm your account on Fiscus',
-        text: `Please confirm your account by visiting http://${req.headers.host}/confirm/${encodeURIComponent(emailAuthToken)}. Welcome to Fiscus! 💰💰💰`
+        text: ` Welcome to Fiscus! 💰💰💰 Please confirm your account by visiting http://${req.headers.host}/confirm/${encodeURIComponent(emailAuthToken)}.`
       };
       transporter.sendMail(mailOptions, function (err) {
         if (err) {
@@ -237,37 +237,6 @@ exports.accountDelete = function (req, res, next) {
     req.flash('info', { msg: 'Your account has been permanently deleted.' });
     res.redirect('/');
   });
-};
-
-/**
- * GET /unlink/:provider
- */
-exports.unlink = function (req, res, next) {
-  new User({ id: req.user.id })
-    .fetch()
-    .then(function (user) {
-      switch (req.params.provider) {
-        case 'facebook':
-          user.set('facebook', null);
-          break;
-        case 'google':
-          user.set('google', null);
-          break;
-        case 'twitter':
-          user.set('twitter', null);
-          break;
-        case 'vk':
-          user.set('vk', null);
-          break;
-        default:
-          req.flash('error', { msg: 'Invalid OAuth Provider' });
-          return res.redirect('/account');
-      }
-      user.save(user.changed, { patch: true }).then(function () {
-        req.flash('success', { msg: 'Your account has been unlinked.' });
-        res.redirect('/account');
-      });
-    });
 };
 
 /**

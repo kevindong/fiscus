@@ -1,7 +1,7 @@
 $(function() {
   $('#search-bar').select2({
     theme: 'bootstrap4',
-    width: '15rem',
+    width: '100%',
     placeholder: 'Search for a stock',
     ajax: {
       url: '/ticker/lookup',

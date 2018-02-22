@@ -12,7 +12,6 @@ const rp = require('request-promise');
  * Splash page of market indices
  */
 exports.index = function(req, res) {
-
   getLastData().then(function(data) {
 
     if(isToday(data.spCurrDate)) {
@@ -198,7 +197,7 @@ function getLastData() {
     }).catch(function(err) {
       console.log(err);
       return err;
-  });
+  }).timeout(3000, new Error('Request not fulfilled within 3 seconds.'));
 }
 
 

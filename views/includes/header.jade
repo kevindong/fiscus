@@ -7,29 +7,22 @@ nav.navbar.navbar-expand-lg.navbar-light
     span.navbar-toggler-icon
 
   .collapse.navbar-collapse(id="navbar")
-    ul.navbar-nav.mr-auto
-      li.nav-item(class=(title == 'Splash') ? 'active' : null)
+    .navbar-nav.mr-auto
+      .nav-item(class=(title == 'Splash') ? 'active' : null)
         a.nav-link(href='/') Home
-      li.nav-item
-        a.nav-link(href='/') TBD1
-      li.nav-item
-        a.nav-link(href='/') TBD2
-      li.nav-item
-        a.nav-link(href='/') TBD3
-      li.nav-item
+      .nav-item.ml-auto.mr-auto(id="search-bar-container")
         select#search-bar
-    ul.navbar-nav
       if user && user.isAdmin
-        li.nav-item(class=(title == 'Admin') ? 'active' : null)
+        .nav-item(class=(title == 'Admin') ? 'active' : null)
           a.nav-link(href='/admin') Admin Console
       if user
-        li.nav-item.dropdown
-          a.nav-link.dropdown-toggle(href="#", id="accountDropdown", data-toggle="dropdown", aria-haspopups="true", aria-expanded="false") Account
+        .nav-item.dropdown
+          a.nav-link.dropdown-toggle.navbar-right(href="#", id="accountDropdown", data-toggle="dropdown", aria-haspopups="true", aria-expanded="false") Account
           .dropdown-menu(aria-labelledby="accountDropdown")
             a.dropdown-item(href="/account") My Account
             a.dropdown-item(href="/logout") Logout
       else
-        li.nav-item(class=(title == 'Log in') ? 'active' : null)
+        .nav-item.navbar-right(class=(title == 'Log in') ? 'active' : null)
           a.nav-link(href='/login') Log in
-        li.nav-item(class=(title == 'Sign up') ? 'active' : null)
+        .nav-item.navbar-right(class=(title == 'Sign up') ? 'active' : null)
           a.nav-link(href='/signup') Sign up
