@@ -1,5 +1,6 @@
 const iextradingRoot = 'https://api.iextrading.com/1.0';
 const rp = require('request-promise');
+const validExchanges = ['NAS', 'NYSE', 'NYQ', 'ASE', 'PCX']; //Used as a whitelist for Yahoo name completion
 
 /*
  * GET /ticker/details/[ticker]
@@ -59,7 +60,6 @@ exports.lookupTickerGet = function(req, res) {
     if (!req.query.text)
         return res.send({ results: [] });
     const url = `http://d.yimg.com/aq/autoc?query=${req.query.text}&region=US&lang=en-US`;
-    const validExchanges = ['NAS', 'NYSE', 'NYQ', 'ASE'];
     rp(url)
         .then((response) => {
             const data = JSON.parse(response);
@@ -75,7 +75,6 @@ exports.lookupTickerGet = function(req, res) {
 
 exports.yahooNameExchangeGet = async function(ticker) {
     const uri = `http://d.yimg.com/aq/autoc?query=${ticker}&region=US&lang=en-US`;
-    const validExchanges = ['NAS', 'NYSE', 'NYQ', 'ASE', 'PCX'];
     return rp({uri, json:true,})
         .then((response) => {
             if (response['ResultSet']['Result'].length === 0)
