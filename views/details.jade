@@ -3,7 +3,7 @@ extends layout
 block content
     .row
         .col-md-1.details-img
-            img(src=logoUrl, style={height: '3.5rem', width: '3.5rem'})
+            img(src=logoUrl, style={min-width:'100%';max-width:'100%';max-height:'100%';})
         .col-md-11
             h3 #{name} - $#{formatMoney(lastPrice)}, 
                 if (change > 0)
