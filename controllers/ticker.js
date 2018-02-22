@@ -46,6 +46,7 @@ exports.tickerDetailsGet = async function(req, res) {
         });
     } catch (e) {
         req.flash('error', {msg: `${ticker} is either an invalid or unsupported ticker.`});
+        console.log(e);
         res.redirect('/');
     }
 };
@@ -74,9 +75,11 @@ exports.lookupTickerGet = function(req, res) {
 
 exports.yahooNameExchangeGet = async function(ticker) {
     const uri = `http://d.yimg.com/aq/autoc?query=${ticker}&region=US&lang=en-US`;
-    const validExchanges = ['NAS', 'NYSE', 'NYQ', 'ASE'];
+    const validExchanges = ['NAS', 'NYSE', 'NYQ', 'ASE', 'PCX'];
     return rp({uri, json:true,})
         .then((response) => {
+            if (response['ResultSet']['Result'].length === 0)
+                return Promise.resolve({name: '', exchange: ''});
             const tickers = response['ResultSet']['Result'].filter((obj) => validExchanges.includes(obj.exch));
             return Promise.resolve({name: tickers[0].name, exchange: tickers[0].exchDisp});
         });
