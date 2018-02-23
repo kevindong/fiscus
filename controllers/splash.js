@@ -11,8 +11,11 @@ const rp = require('request-promise');
  *
  * Splash page of market indices
  */
-exports.index = function (req, res) {
-  getLastData().then(function (data) {
+exports.index = function(req, res) {
+
+  getIntradayData();
+
+  getLastData().then(function(data) {
 
     if (isToday(data.spCurrDate)) {
       let chgData = getChgData(data.spCurrData,
@@ -237,5 +240,32 @@ function getChgData(spCurrData, spLastData, djiaCurrData, djiaLastData, nsdqCurr
   let nsdqChng = nsdqCurrData[closeRef] - nsdqLastData[closeRef];
   let nsdqPctChng = 100 * nsdqChng / nsdqLastData[closeRef];
 
-  return { spChng, spPctChng, djiaChng, djiaPctChng, nsdqChng, nsdqPctChng }
+  return {spChng, spPctChng, djiaChng, djiaPctChng, nsdqChng, nsdqPctChng}
+}
+
+async function getIntradayData() {
+  const spApiUrlDay =
+    `${apiroot}?function=TIME_SERIES_INTRADAY&symbol=SPX&interval=5min&apikey=${apikey}`; // S&P 500
+  const nsdqApiUrlDay =
+    `${apiroot}?function=TIME_SERIES_INTRADAY&symbol=IXIC&interval=5min&apikey=${apikey}`; // NASDAQ
+  const djiaApiUrlDay =
+    `${apiroot}?function=TIME_SERIES_INTRADAY&symbol=DJI&interval=5min&apikey=${apikey}`; // Dow Jones Industrial Average
+
+
+  const [spResponse, nsdqResponse, djiaResponse] = await Promise.all([
+    rp({
+      uri: spApiUrlDay,
+      json: true
+    }),
+    rp({
+      uri: nsdqApiUrlDay,
+      json: true
+    }),
+    rp({
+      uri: djiaApiUrlDay,
+      json: true
+    })
+  ]);
+
+  //console.log(spResponse);
 }
