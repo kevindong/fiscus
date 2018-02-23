@@ -11,10 +11,10 @@ const rp = require('request-promise');
  *
  * Splash page of market indices
  */
-exports.index = function(req, res) {
-  getLastData().then(function(data) {
+exports.index = function (req, res) {
+  getLastData().then(function (data) {
 
-    if(isToday(data.spCurrDate)) {
+    if (isToday(data.spCurrDate)) {
       let chgData = getChgData(data.spCurrData,
         data.spLastData,
         data.djiaCurrData,
@@ -51,7 +51,7 @@ exports.index = function(req, res) {
         dataLoad: true
       });
     }
-  }).catch(function(err) {
+  }).catch(function (err) {
     console.log(err);
 
     res.render('splash', {
@@ -80,16 +80,16 @@ exports.index = function(req, res) {
 function formatDate(date) {
   // Get yesterday's date
   let dd = date.getDate();
-  let mm = date.getMonth()+1; //January is 0!
+  let mm = date.getMonth() + 1; //January is 0!
   let yyyy = date.getFullYear();
 
-  if(dd<10){
-    dd='0'+dd;
+  if (dd < 10) {
+    dd = '0' + dd;
   }
-  if(mm<10){
-    mm='0'+mm;
+  if (mm < 10) {
+    mm = '0' + mm;
   }
-  return (yyyy+'-'+mm+'-'+dd);
+  return (yyyy + '-' + mm + '-' + dd);
 }
 
 
@@ -117,9 +117,9 @@ function lastValues() {
           return getValues(day);
         } else {
           day.setDate(today.getDate() - 3);
-          return marketOpen(day).then(function(isOpen) {
+          return marketOpen(day).then(function (isOpen) {
 
-            if(isOpen) {
+            if (isOpen) {
               return getValues(day);
             } else {
               return 'error';
@@ -151,7 +151,7 @@ function getLastData() {
   let djiaRequest = rp(djiaApiUrl);
 
   return Bluebird.all([spRequest, nsdqRequest, djiaRequest])
-    .spread(function(spResponse, nsdqResponse, djiaResponse) {
+    .spread(function (spResponse, nsdqResponse, djiaResponse) {
 
       // S&P 500 Processing
       let spData = JSON.parse(spResponse);
@@ -181,7 +181,8 @@ function getLastData() {
       let nsdqLastDate = Object.keys(nsdqData[deref])[1];
       let nsdqLastData = nsdqData[deref][nsdqLastDate];
 
-      return {spCurrDate,
+      return {
+        spCurrDate,
         spCurrData,
         spLastDate,
         spLastData,
@@ -194,10 +195,10 @@ function getLastData() {
         nsdqLastDate,
         nsdqLastData
       };
-    }).catch(function(err) {
+    }).catch(function (err) {
       console.log(err);
       return err;
-  }).timeout(3000, new Error('Request not fulfilled within 3 seconds.'));
+    }).timeout(3000, new Error('Request not fulfilled within 3 seconds.'));
 }
 
 
@@ -236,5 +237,5 @@ function getChgData(spCurrData, spLastData, djiaCurrData, djiaLastData, nsdqCurr
   let nsdqChng = nsdqCurrData[closeRef] - nsdqLastData[closeRef];
   let nsdqPctChng = 100 * nsdqChng / nsdqLastData[closeRef];
 
-  return {spChng, spPctChng, djiaChng, djiaPctChng, nsdqChng, nsdqPctChng}
+  return { spChng, spPctChng, djiaChng, djiaPctChng, nsdqChng, nsdqPctChng }
 }
