@@ -16,6 +16,12 @@ exports.tickerDetailsGet = async function(req, res) {
         const keyStats = await exports.iexKeyStatsGet(ticker);
         const logo = await exports.iexLogoGet(ticker);
         const quote = await exports.iexQuoteGet(ticker);
+        const chartData = await exports.iexChartGet(ticker, '1d');
+        const chart = formatData(chartData);
+        const chartYearData = await exports.iexYearChartGet(ticker);
+        const chartYear = await formatYearData(chartYearData);
+        const dividends = formatDividends(await getDividends(ticker));
+        const splits = formatSplits(await getSplits(ticker));
         const lastPrice = quote.latestPrice;
         const closePrice = ohlc.close.price;
         const previousClose = quote.previousClose;
@@ -27,8 +33,10 @@ exports.tickerDetailsGet = async function(req, res) {
         const close = ohlc.close.price;
         const low = ohlc.low;
         const high = ohlc.high;
+        const color = (change >= 0) ? '#4CAF50' : '#F44336';
+        const baseline = [{x: chart[0].x, y: previousClose}, {x: chart[chart.length-1].x, y: previousClose}];
         res.render('details', { 
-            ticker, 
+            ticker,
             lastPrice, 
             change,
             changeFormatted,
@@ -44,8 +52,14 @@ exports.tickerDetailsGet = async function(req, res) {
             formatMoney, //function to format money, useful in view
             logoUrl: logo.url,
             keyStats,
+            chartData: JSON.stringify(chart),
+            chartColor: JSON.stringify(color),
+            baseline: JSON.stringify(baseline),
+            chartYear: JSON.stringify(chartYear),
+            annotations: JSON.stringify(dividends.concat(splits))
         });
     } catch (e) {
+        console.log(e);
         req.flash('error', {msg: `${ticker} is either an invalid or unsupported ticker.`});
         console.log(e);
         res.redirect('/');
@@ -128,7 +142,7 @@ exports.iexQuoteGet = async function(ticker) {
         uri: `${iextradingRoot}/stock/${ticker}/quote`,
         json: true,
     });
-}
+};
 
 /*
  * Used to format money in the view
@@ -139,4 +153,122 @@ const formatMoney = function(money) {
     if (!money)
         return '?';
     return money.toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');
+};
+
+exports.iexChartGet = async function(ticker, timeFrame) {
+    return rp({
+      uri: `${iextradingRoot}/stock/${ticker}/chart/${timeFrame}?filter=date,minute,marketAverage`,
+      json: true,
+    });
+};
+
+
+const formatData = function(data) {
+  for(i in data) {
+
+    if(data[i].marketAverage === 0) {
+      data.splice(i, data.length-i);
+
+      return data;
+    }
+
+    data[i].x = data[i].date.substring(0,4) + '-' + data[i].date.substring(4,6) + '-' + data[i].date.substring(6,8) + ' ' +  data[i].minute;
+    data[i].y = data[i].marketAverage;
+    delete data[i].date;
+    delete data[i].minute;
+    delete data[i].marketAverage;
+  }
+
+  return data;
+};
+
+exports.iexYearChartGet = async function(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/chart/1y?filter=date,close`,
+    json: true,
+  });
+};
+
+
+const formatYearData = function(data) {
+    for(i in data) {
+        data[i].x = data[i].date;
+        data[i].y = data[i].close;
+
+        delete data[i].date;
+        delete data[i].close;
+    }
+
+    return data;
+};
+
+const getDividends = async function(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/dividends/1y?filter=paymentDate,amount`,
+    json: true,
+  });
+};
+
+const formatDividends = function(data) {
+
+    const divTemplate = {
+        type: 'line',
+        mode: "vertical",
+        scaleID: "x-axis-0",
+        value: "2017-05-14",
+        borderColor: "#4CAF50",
+        label: {
+        content: "TODAY",
+          enabled: true,
+          position: "top"
+        }
+    };
+
+    let dividends = [];
+
+    for(i in data) {
+        let temp = Object.assign({}, divTemplate);
+        temp.value = data[i].paymentDate;
+        temp.label.content = 'Dividend Paid: $' + data[i].amount;
+        dividends.push(temp);
+    }
+
+    console.log(dividends);
+
+    return dividends;
+
+};
+
+const getSplits = async function(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/splits/1y?filter=paymentDate,ratio`,
+    json: true,
+  });
+};
+
+const formatSplits = function(data) {
+  const splitTemplate = {
+    type: 'line',
+    mode: "vertical",
+    scaleID: "x-axis-0",
+    value: "2017-05-14",
+    borderColor: "#2196F3",
+    label: {
+      content: "Split",
+      enabled: true,
+      position: "top"
+    }
+  };
+
+  let splits = [];
+
+  for(i in data) {
+    let temps = Object.assign({}, splitTemplate);
+    temps.value = data[i].paymentDate;
+    splits.push(temps);
+  }
+
+  console.log(splits);
+
+  return splits;
 };

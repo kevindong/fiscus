@@ -16,7 +16,96 @@ block content
     .row
         .col-md-12
             hr
-            p(style={height: "50vh"}) Graph goes here
+            canvas(id='myChart')
+            script.
+                window.onload = function() {
+                  var ctx = document.getElementById("myChart").getContext('2d');
+                  var myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                      labels: ["Stock Price"],
+                      datasets: [{
+                        label: 'Stock Price - 1d',
+                        fill: 2,
+                        lineTension: 0,
+                        data: !{chartData},
+                        borderColor: [
+                          !{chartColor}
+                        ],
+                        borderWidth: 2,
+                        pointRadius: 0
+                      }, {
+                        label: 'Previous Close',
+                        fill: false,
+                        data: !{baseline},
+                        borderColor: [
+                          '#212121'
+                        ],
+                        borderDash: [10, 5],
+                        borderWidth: 1,
+                        pointRadius: 0
+                      }]
+                    },
+                    options: {
+                      scales: {
+                        xAxes:[{
+                          type: 'time',
+                          display: true,
+                          scaleLabel: {
+                            display: true,
+                            labelString: "Time"
+                          }
+                        }],
+                        yAxes: [{
+                          scaleLabel: {
+                            display: true,
+                            labelString: "Price ($)"
+                          }
+                        }]
+                      }
+                    }
+                  })
+                    var ct = document.getElementById("yearChart").getContext('2d');
+                    var yearChart = new Chart(ct, {
+                      type: 'line',
+                      data: {
+                        labels: ["Stock Price"],
+                        datasets: [{
+                          label: 'Stock Price - 1Y',
+                          fill: 2,
+                          lineTension: 0,
+                          data: !{chartYear},
+                          borderColor: [
+                            '#212121'
+                          ],
+                          borderWidth: false,
+                          pointRadius: 0
+                        }]
+                      },
+                      options: {
+                        scales: {
+                          xAxes: [{
+                            type: 'time',
+                            display: true,
+                            scaleLabel: {
+                              display: true,
+                              labelString: "Date"
+                            }
+                          }],
+                          yAxes: [{
+                            scaleLabel: {
+                              display: true,
+                              labelString: "Price ($)"
+                            }
+                          }]
+                        },
+                        annotation: {
+                          annotations: !{annotations}
+                        }
+
+                      }
+                    })
+                };
     .row
         .col-md-6
             .card(style={margin: '10px 0 10px 0'})
@@ -103,6 +192,11 @@ block content
                         hr
                         p.card-text #{article.summary}
                         a.card-link(href=article.url) Link to article
+
+    .row
+        .col-md-12
+            hr
+            canvas(id='yearChart')
 
                 
                 
