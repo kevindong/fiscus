@@ -43,8 +43,7 @@ app.use(function (req, res, next) {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
-
-// Boilerplate routes
+// boilerplate routes
 app.get('/', splashController.index);
 app.get('/account', userController.ensureAuthenticated, userController.accountGet);
 app.put('/account', userController.ensureAuthenticated, userController.accountPut);
@@ -59,12 +58,12 @@ app.post('/forgot', userController.forgotPost);
 app.get('/reset/:token', userController.resetGet);
 app.post('/reset/:token', userController.resetPost);
 app.get('/logout', userController.logout);
+
+// ticker routes
 app.get('/ticker/details/:ticker', tickerController.tickerDetailsGet);
 app.get('/ticker/lookup', tickerController.lookupTickerGet);
 
-
-
-// Admin console routes
+// admin console routes
 app.get('/admin', adminController.ensureAuthenticated, adminController.index);
 app.post('/admin/banUser', adminController.ensureAuthenticated, adminController.banUser);
 app.post('/admin/unbanUser', adminController.ensureAuthenticated, adminController.unbanUser);
