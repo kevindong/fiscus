@@ -9,73 +9,155 @@ block content
         .row.align-items-center
             .col-4
                 .row.justify-content-center
-                    if spChg > 0
+                    if spChng > 0
                         .col-6
-                            h3 #[strong S&P 500]
-                            h2(style={color:'#4CAF50'}).align-self-end #{spClose}
-                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{spChg} (+#{sp})
+                            h3 #[strong S&P 500#[sup 1]]
+                            h2(style={color:'#4CAF50'}).align-self-end #{sp}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{spChng} (+#{spPctChng})
                         img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
 
-                    else if spChg < 0
+                    else if spChng < 0
                         .col-6
-                            h3 #[strong S&P 500]
-                            h2(style={color: '#F44336'}).align-self-end #{spClose}
-                            h6(style={color: '#F44336'}).mt-0.align-self-end #{spChg} (#{sp})
+                            h3 #[strong S&P 500#[sup 1]]
+                            h2(style={color: '#F44336'}).align-self-end #{sp}
+                            h6(style={color: '#F44336'}).mt-0.align-self-end #{spChng} (#{spPctChng})
                         img(src='/img/arrow-down.svg').d-flex.align-self-center.mr-3.col-3
 
                     else
                         .col-6
-                            h3 #[strong S&P 500]
-                            h2(style={color: '#9E9E9E'}).align-self-end #{spClose}
-                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{spChg} (#{sp})
+                            h3 #[strong S&P 500#[sup 1]]
+                            h2(style={color: '#9E9E9E'}).align-self-end #{sp}
+                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{spChng} (#{spPctChng})
 
             .col-4
                 .row.justify-content-center
-                    if djiaChg > 0
+                    if djiaChng > 0
                         .col-6
-                            h3 #[strong DOW]
-                            h2(style={color: '#4CAF50'}).align-self-end #{djiaClose}
-                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{djiaChg} (+#{djia})
+                            h3 #[strong DOW#[sup 1]]
+                            h2(style={color: '#4CAF50'}).align-self-end #{djia}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{djiaChng} (+#{djiaPctChng})
                         img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
 
                     else if djiaChg < 0
                         .col-6
-                            h3 #[strong DOW]
-                            h2(style={color: '#F44336'}).align-self-end #{djiaClose}
-                            h6(style={color: '#F44336'}).mt-0.align-self-end #{djiaChg} (#{djia})
+                            h3 #[strong DOW#[sup 1]]
+                            h2(style={color: '#F44336'}).align-self-end #{djia}
+                            h6(style={color: '#F44336'}).mt-0.align-self-end #{djiaChng} (#{djiaPctChng})
                         img(src='/img/arrow-down.svg').d-flex.align-self-center.mr-3.col-3
 
                     else
                         .col-6
-                            h3 #[strong DOW]
-                            h2(style={color: '#9E9E9E'}).align-self-end #{djiaClose}
-                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{djiaChg} (#{djia})
+                            h3 #[strong DOW#[sup 1]]
+                            h2(style={color: '#9E9E9E'}).align-self-end #{djia}
+                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{djiaChng} (#{djiaPctChng})
 
 
             .col-4
                 .row.justify-content-center
-                    if nsdqChg > 0
+                    if nsdqChng > 0
                         .col-6
-                            h3 #[strong NASDAQ]
-                            h2(style={color: '#4CAF50'}).align-self-end #{nsdqClose}
-                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{nsdqChg} (+#{nsdq})
+                            h3 #[strong NASDAQ#[sup 1]]
+                            h2(style={color: '#4CAF50'}).align-self-end #{nsdq}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{nsdqChng} (+#{nsdqPctChng})
                         img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
 
-                    else if nsdqChg < 0
+                    else if nsdqChng < 0
                         .col-6
-                            h3 #[strong NASDAQ]
-                            h2(style={color: '#F44336'}).align-self-end #{nsdqClose}
-                            h6(style={color: '#F44336'}).mt-0.align-self-end #{nsdqChg} (#{nsdq})
+                            h3 #[strong NASDAQ#[sup 1]]
+                            h2(style={color: '#F44336'}).align-self-end #{nsdq}
+                            h6(style={color: '#F44336'}).mt-0.align-self-end #{nsdqChng} (#{nsdqPctChng})
                         img(src='/img/arrow-down.svg').d-flex.align-self-center.mr-3.col-3
 
                     else
                         .col-6
-                            h3 #[strong NASDAQ]
-                            h2(style={color: '#9E9E9E'}).align-self-end #{nsdqClose}
-                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{nsdqChg} (#{nsdq})
+                            h3 #[strong NASDAQ#[sup 1]]
+                            h2(style={color: '#9E9E9E'}).align-self-end #{nsdq}
+                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{nsdqChng} (#{nsdqPctChng})
 
         br
         br
+
+        .row
+            hr
+            canvas(id='normChart')
+            script.
+              window.onload = function () {
+                var ctx = document.getElementById("normChart").getContext('2d');
+                var myChart = new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                    labels: ["Indices"],
+                    datasets: [{
+                      label: 'S&P 500 (SPX)',
+                      fill: false,
+                      lineTension: 0,
+                      data: !{spNormData},
+                      borderColor: [
+                        '#FF8A65'
+                      ],
+                      backgroundColor: [
+                        'rgba(255,138,101, 0.3)'
+                      ],
+                      borderWidth: 2,
+                      pointRadius: 0
+                    }, {
+                      label: 'Russel 2000 (IWM)',
+                      fill: false,
+                      lineTension: 0,
+                      data: !{nsdqNormData},
+                      borderColor: [
+                        '#4DB6AC'
+                      ],
+                      backgroundColor: [
+                        'rgba(77,182,172, 0.3)'
+                      ],
+                      borderWidth: 2,
+                      pointRadius: 0
+                    }, {
+                      label: 'Dow Jones Industrial Average (DIA)',
+                      fill: false,
+                      lineTension: 0,
+                      data: !{djiaNormData},
+                      borderColor: [
+                        '#FFD54F'
+                      ],
+                      backgroundColor: [
+                        'rgba(255,213,79, 0.3)'
+                      ],
+                      borderWidth: 2,
+                      pointRadius: 0
+                    }]
+                  },
+                  options: {
+                    title: {
+                      display: true,
+                      text: 'Major Indices Daily Returns'
+                    },
+                    scales: {
+                      xAxes: [{
+                        type: 'time',
+                        display: true,
+                        scaleLabel: {
+                          display: true,
+                          labelString: "Time"
+                        }
+                      }],
+                      yAxes: [{
+                        scaleLabel: {
+                          display: true,
+                          labelString: "Pct. Change (%)"
+                        }
+                      }]
+                    }
+                  }
+                })
+              }
+
+        br
+        br
+        .row
+            .col-md-12
+                p(style= {color: '#9E9E9E'}) #[sup 1]ETF (Exchange Traded Fund)
 
         if dataLoad == false
             p(style={'text-align': 'center'}) Market Data Failed to Load - Please Reload in a Moment

@@ -4,7 +4,7 @@ const deref = 'Time Series (Daily)';
 const closeRef = '4. close';
 const Bluebird = require('bluebird');
 const rp = require('request-promise');
-
+const iextradingRoot = 'https://api.iextrading.com/1.0';
 
 /**
  * GET /
@@ -13,65 +13,62 @@ const rp = require('request-promise');
  */
 exports.index = function(req, res) {
 
-  getIntradayData();
+  iexIntradayIndexGet()
+    .then(async function(data) {
+      // Format
+      let spFormat = formatData(data.spResponse);
+      let nsdqFormat = formatData(data.nsdqResponse);
+      let djiaFormat = formatData(data.djiaResponse);
 
-  getLastData().then(function(data) {
+      let quotes = await getIndexQuotes();
 
-    if (isToday(data.spCurrDate)) {
-      let chgData = getChgData(data.spCurrData,
-        data.spLastData,
-        data.djiaCurrData,
-        data.djiaLastData,
-        data.nsdqCurrData,
-        data.nsdqLastData);
+      // Normalize
+      let spNorm = normalizeData(spFormat, quotes.spQuote.previousClose);
+      let nsdqNorm = normalizeData(nsdqFormat, quotes.nsdqQuote.previousClose);
+      let djiaNorm = normalizeData(djiaFormat, quotes.djiaQuote.previousClose);
 
       res.render('splash', {
-        title: 'Splash',
-        sp: chgData.spPctChng.toFixed(2) + '%',
-        spChg: chgData.spChng.toFixed(2),
-        spClose: parseFloat(data.spCurrData[closeRef]).toFixed(2),
-        nsdq: chgData.nsdqPctChng.toFixed(2) + '%',
-        nsdqChg: chgData.nsdqChng.toFixed(2),
-        nsdqClose: parseFloat(data.nsdqCurrData[closeRef]).toFixed(2),
-        djia: chgData.djiaPctChng.toFixed(2) + '%',
-        djiaChg: chgData.djiaChng.toFixed(2),
-        djiaClose: parseFloat(data.djiaCurrData[closeRef]).toFixed(2),
+        title: 'Home',
+
+        sp: quotes.spQuote.latestPrice.toFixed(2),
+        spChng: quotes.spQuote.change.toFixed(2),
+        spPctChng: (quotes.spQuote.changePercent * 100).toFixed(2) + '%',
+
+        nsdq: quotes.nsdqQuote.latestPrice.toFixed(2),
+        nsdqChng: quotes.nsdqQuote.change.toFixed(2),
+        nsdqPctChng: (quotes.nsdqQuote.changePercent * 100).toFixed(2) + '%',
+
+        djia: quotes.djiaQuote.latestPrice.toFixed(2),
+        djiaChng: quotes.djiaQuote.change.toFixed(2),
+        djiaPctChng: (quotes.djiaQuote.changePercent * 100).toFixed(2) + '%',
+
+        spNormData: JSON.stringify(spNorm),
+        nsdqNormData: JSON.stringify(nsdqNorm),
+        djiaNormData: JSON.stringify(djiaNorm),
+
         dataLoad: true
       });
+    }).catch(function(err) {
+      console.log(err);
 
-    } else {
       res.render('splash', {
-        title: 'Splash',
-        sp: '0.00%',
-        spChg: '0.00',
-        spClose: parseFloat(data.spCurrData[closeRef]).toFixed(2),
-        nsdq: '0.00%',
-        nsdqChg: '0.00',
-        nsdqClose: parseFloat(data.nsdqCurrData[closeRef]).toFixed(2),
-        djia: '0.00%',
-        djiaChg: '0.00',
-        djiaClose: parseFloat(data.djiaCurrData[closeRef]).toFixed(2),
-        dataLoad: true
-      });
-    }
-  }).catch(function (err) {
-    console.log(err);
+        title: 'Home',
 
-    res.render('splash', {
-      title: 'Splash',
-      sp: '0.00%',
-      spChg: '0.00',
-      spClose: '-- --',
-      nsdq: '0.00%',
-      nsdqChg: '0.00',
-      nsdqClose: '-- --',
-      djia: '0.00%',
-      djiaChg: '0.00',
-      djiaClose: '-- --',
-      dataLoad: false
-    });
-  });
+        sp: '-- --',
+        spChng: '0.00',
+        spPctChng: '0.00%',
 
+        nsdq: '-- --',
+        nsdqChng: '0.00',
+        nsdqPctChng: '0.00%',
+
+        djia: '-- --',
+        djiaChng: '0.00',
+        djiaPctChng: '0.00%',
+
+        dataLoad: false
+      })
+  })
 };
 
 
@@ -96,176 +93,78 @@ function formatDate(date) {
 }
 
 
-/**
- * Gets the last values of important indices of the stock market
- * @returns {Promise.<TResult>|*}
- */
-function lastValues() {
+async function iexIntradayIndexGet() {
+  const [spResponse, nsdqResponse, djiaResponse] = await Promise.all([
+    intradayIndexGet('SPY'),
+    intradayIndexGet('IWM'),
+    intradayIndexGet('DIA')
+  ]).catch(function(err) {
+    console.log(err);
+  });
 
-  let today = new Date();
-  let day = new Date();
+  return {spResponse, nsdqResponse, djiaResponse};
+}
 
 
-  day.setDate(today.getDate() - 1);
-
-  return marketOpen(day).then(function (isOpen) {
-
-    if (isOpen) {
-      return getValues(day);
-    } else {
-      day.setDate(today.getDate() - 2);
-      return marketOpen(day).then(function (isOpen) {
-
-        if (isOpen) {
-          return getValues(day);
-        } else {
-          day.setDate(today.getDate() - 3);
-          return marketOpen(day).then(function (isOpen) {
-
-            if (isOpen) {
-              return getValues(day);
-            } else {
-              return 'error';
-            }
-          })
-        }
-
-      });
-    }
+async function intradayIndexGet(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/chart/1d?filter=date,minute,marketAverage`,
+    json: true,
   });
 }
 
 
-/**
- * Gets the last two days of data for all the major indices
- * @returns {Promise.<T>}
- */
-function getLastData() {
+const formatData = function(data) {
+  for(i in data) {
 
-  const spApiUrl =
-    `${apiroot}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=SPX&apikey=${apikey}`; // S&P 500
-  const nsdqApiUrl =
-    `${apiroot}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=IXIC&apikey=${apikey}`; // NASDAQ
-  const djiaApiUrl =
-    `${apiroot}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=DJI&apikey=${apikey}`; // Dow Jones Industrial Average
+    if(data[i].marketAverage === 0) {
+      data.splice(i, data.length-i);
 
-  let spRequest = rp(spApiUrl);
-  let nsdqRequest = rp(nsdqApiUrl);
-  let djiaRequest = rp(djiaApiUrl);
+      return data;
+    }
 
-  return Bluebird.all([spRequest, nsdqRequest, djiaRequest])
-    .spread(function (spResponse, nsdqResponse, djiaResponse) {
+    data[i].x = data[i].date.substring(0,4) + '-' + data[i].date.substring(4,6) + '-' + data[i].date.substring(6,8) + ' ' +  data[i].minute;
+    data[i].y = data[i].marketAverage;
+    delete data[i].date;
+    delete data[i].minute;
+    delete data[i].marketAverage;
+  }
 
-      // S&P 500 Processing
-      let spData = JSON.parse(spResponse);
-
-      let spCurrDate = Object.keys(spData[deref])[0];
-      let spCurrData = spData[deref][spCurrDate];
-
-      let spLastDate = Object.keys(spData[deref])[1];
-      let spLastData = spData[deref][spLastDate];
-
-      // DOW Processing
-      let djiaData = JSON.parse(djiaResponse);
-
-      let djiaCurrDate = Object.keys(djiaData[deref])[0];
-      let djiaCurrData = djiaData[deref][djiaCurrDate];
-
-      let djiaLastDate = Object.keys(djiaData[deref])[1];
-      let djiaLastData = djiaData[deref][djiaLastDate];
+  return data;
+};
 
 
-      // NASDAQ Processing
-      let nsdqData = JSON.parse(nsdqResponse);
+const normalizeData = function(data, prevClose) {
 
-      let nsdqCurrDate = Object.keys(nsdqData[deref])[0];
-      let nsdqCurrData = nsdqData[deref][nsdqCurrDate];
+  let normData = [];
 
-      let nsdqLastDate = Object.keys(nsdqData[deref])[1];
-      let nsdqLastData = nsdqData[deref][nsdqLastDate];
+  for(i in data) {
+    let obj ={};
+    obj.x = data[i].x;
+    obj.y = (data[i].y - prevClose) * 100 / prevClose;
+    normData.push(obj);
+  }
 
-      return {
-        spCurrDate,
-        spCurrData,
-        spLastDate,
-        spLastData,
-        djiaCurrDate,
-        djiaCurrData,
-        djiaLastDate,
-        djiaLastData,
-        nsdqCurrDate,
-        nsdqCurrData,
-        nsdqLastDate,
-        nsdqLastData
-      };
-    }).catch(function (err) {
-      console.log(err);
-      return err;
-    }).timeout(3000, new Error('Request not fulfilled within 3 seconds.'));
-}
+  return normData;
+};
 
 
-/**
- * Tells whether the latest data is from today or not
- *
- * @param date
- * @returns {boolean}
- */
-function isToday(date) {
-  let today = formatDate(new Date());
-
-  return (date === today);
-}
+const getQuote = function(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/quote/1d?filter=previousClose,change,changePercent,latestPrice`,
+    json: true,
+  });
+};
 
 
-/**
- * Gets the change to the index on the day
- *
- * @param spCurrData
- * @param spLastData
- * @param djiaCurrData
- * @param djiaLastData
- * @param nsdqCurrData
- * @param nsdqLastData
- * @returns {{spChng: number, spPctChng: number, djiaChng: number, djiaPctChng: number, nsdqChng: number, nsdqPctChng: number}}
- */
-function getChgData(spCurrData, spLastData, djiaCurrData, djiaLastData, nsdqCurrData, nsdqLastData) {
+async function getIndexQuotes() {
+  const [spQuote, nsdqQuote, djiaQuote] = await Promise.all([
+    getQuote('SPY'),
+    getQuote('IWM'),
+    getQuote('DIA')
+  ]).catch(function(err) {
+    console.log(err);
+  });
 
-  let spChng = spCurrData[closeRef] - spLastData[closeRef];
-  let spPctChng = 100 * spChng / spLastData[closeRef];
-
-  let djiaChng = djiaCurrData[closeRef] - djiaLastData[closeRef];
-  let djiaPctChng = 100 * djiaChng / djiaLastData[closeRef];
-
-  let nsdqChng = nsdqCurrData[closeRef] - nsdqLastData[closeRef];
-  let nsdqPctChng = 100 * nsdqChng / nsdqLastData[closeRef];
-
-  return {spChng, spPctChng, djiaChng, djiaPctChng, nsdqChng, nsdqPctChng}
-}
-
-async function getIntradayData() {
-  const spApiUrlDay =
-    `${apiroot}?function=TIME_SERIES_INTRADAY&symbol=SPX&interval=5min&apikey=${apikey}`; // S&P 500
-  const nsdqApiUrlDay =
-    `${apiroot}?function=TIME_SERIES_INTRADAY&symbol=IXIC&interval=5min&apikey=${apikey}`; // NASDAQ
-  const djiaApiUrlDay =
-    `${apiroot}?function=TIME_SERIES_INTRADAY&symbol=DJI&interval=5min&apikey=${apikey}`; // Dow Jones Industrial Average
-
-
-  const [spResponse, nsdqResponse, djiaResponse] = await Promise.all([
-    rp({
-      uri: spApiUrlDay,
-      json: true
-    }),
-    rp({
-      uri: nsdqApiUrlDay,
-      json: true
-    }),
-    rp({
-      uri: djiaApiUrlDay,
-      json: true
-    })
-  ]);
-
-  //console.log(spResponse);
+  return {spQuote, nsdqQuote, djiaQuote};
 }
