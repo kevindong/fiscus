@@ -22,6 +22,7 @@ exports.tickerDetailsGet = async function(req, res) {
         const chartYear = await formatYearData(chartYearData);
         const dividends = formatDividends(await getDividends(ticker));
         const splits = formatSplits(await getSplits(ticker));
+        console.log(splits);
         const lastPrice = quote.latestPrice;
         const closePrice = ohlc.close.price;
         const previousClose = quote.previousClose;
@@ -35,7 +36,8 @@ exports.tickerDetailsGet = async function(req, res) {
         const high = ohlc.high;
         const color = (change >= 0) ? '#4CAF50' : '#F44336';
         const baseline = [{x: chart[0].x, y: previousClose}, {x: chart[chart.length-1].x, y: previousClose}];
-        res.render('details', { 
+        res.render('details', {
+            title: ticker + ' - Details',
             ticker,
             lastPrice, 
             change,
@@ -233,15 +235,13 @@ const formatDividends = function(data) {
         dividends.push(temp);
     }
 
-    console.log(dividends);
-
     return dividends;
 
 };
 
 const getSplits = async function(ticker) {
   return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/splits/1y?filter=paymentDate,ratio`,
+    uri: `${iextradingRoot}/stock/${ticker}/splits/1y?filter=exDate,ratio`,
     json: true,
   });
 };
@@ -264,11 +264,9 @@ const formatSplits = function(data) {
 
   for(i in data) {
     let temps = Object.assign({}, splitTemplate);
-    temps.value = data[i].paymentDate;
+    temps.value = data[i].exDate;
     splits.push(temps);
   }
-
-  console.log(splits);
 
   return splits;
 };
