@@ -20,6 +20,8 @@ exports.index = function(req, res) {
       let nsdqFormat = formatData(data.nsdqResponse);
       let djiaFormat = formatData(data.djiaResponse);
 
+      console.log(nsdqFormat);
+
       let quotes = await getIndexQuotes();
 
       // Normalize
@@ -108,7 +110,7 @@ async function iexIntradayIndexGet() {
 
 async function intradayIndexGet(ticker) {
   return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/chart/1d?filter=date,minute,marketAverage`,
+    uri: `${iextradingRoot}/stock/${ticker}/chart/1d?filter=date,minute,average,volume`,
     json: true,
   });
 }
@@ -117,17 +119,16 @@ async function intradayIndexGet(ticker) {
 const formatData = function(data) {
   for(i in data) {
 
-    if(data[i].marketAverage === 0) {
-      data.splice(i, data.length-i);
-
-      return data;
+    if((data[i].average === 0) && (data[i].volume === 0)) {
+      data.splice(i, 1);
+    } else {
+      data[i].x = data[i].date.substring(0,4) + '-' + data[i].date.substring(4,6) + '-' + data[i].date.substring(6,8) + ' ' +  data[i].minute;
+      data[i].y = data[i].average;
+      delete data[i].date;
+      delete data[i].minute;
+      delete data[i].average;
     }
 
-    data[i].x = data[i].date.substring(0,4) + '-' + data[i].date.substring(4,6) + '-' + data[i].date.substring(6,8) + ' ' +  data[i].minute;
-    data[i].y = data[i].marketAverage;
-    delete data[i].date;
-    delete data[i].minute;
-    delete data[i].marketAverage;
   }
 
   return data;
