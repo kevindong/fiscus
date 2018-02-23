@@ -6,6 +6,7 @@ var splash = require('../controllers/splash');
 
 describe('GET /', function() {
   it('should render ok', function(done) {
+    this.timeout(5000);
     request(server)
       .get('/')
       .expect(200, done);

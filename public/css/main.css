@@ -40,6 +40,10 @@
   border-color: #4CAF50 !important;
 }
 
+.select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected] {
+  background-color: #4CAF50 !important;
+}
+
 .select2-selection__arrow {
   display: none;
 }
