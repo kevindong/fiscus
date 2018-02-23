@@ -96,7 +96,7 @@ function formatDate(date) {
 async function iexIntradayIndexGet() {
   const [spResponse, nsdqResponse, djiaResponse] = await Promise.all([
     intradayIndexGet('SPY'),
-    intradayIndexGet('IWM'),
+    intradayIndexGet('QQQ'),
     intradayIndexGet('DIA')
   ]).catch(function(err) {
     console.log(err);
@@ -160,7 +160,7 @@ const getQuote = function(ticker) {
 async function getIndexQuotes() {
   const [spQuote, nsdqQuote, djiaQuote] = await Promise.all([
     getQuote('SPY'),
-    getQuote('IWM'),
+    getQuote('QQQ'),
     getQuote('DIA')
   ]).catch(function(err) {
     console.log(err);
