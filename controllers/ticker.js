@@ -22,7 +22,6 @@ exports.tickerDetailsGet = async function(req, res) {
         const chartYear = await formatYearData(chartYearData);
         const dividends = formatDividends(await getDividends(ticker));
         const splits = formatSplits(await getSplits(ticker));
-        console.log(splits);
         const lastPrice = quote.latestPrice;
         const closePrice = ohlc.close.price;
         const previousClose = quote.previousClose;
