@@ -1,0 +1,31 @@
+extends ../layout
+
+block content
+  .alert.alert-warning(role="alert") Be careful, any changes you make here are final once you click 'Save' or 'Delete'. You can always re-edit or re-add transactions though!
+  .table-responsive
+    table.table
+      thead
+        tr
+          th(scope="col") Name
+          th(scope="col") Action
+          th(scope="col") Ticker
+          th(scope="col") Date
+          th.text-right(scope="col") Value
+          th.text-right(scope="col") Shares
+          th(scope="col") Edit
+          th(scope="col") Delete
+      tbody
+        each transaction in transactions
+          tr
+            td #{securityNames[transaction.ticker]}
+            td #{transaction.type}
+            td #{transaction.ticker}
+            td #{transaction.dateTransacted.toISOString().substring(0, 10)}
+            td.text-right #{transaction.value}
+            td.text-right #{transaction.numShares}
+            td
+              a.href.btn.btn-primary(href=`/portfolio/${portfolioId}/transaction/edit/${transaction.id}`) Edit
+            td
+              form(action="/portfolio/#{portfolioId}/transaction/delete/#{transaction.id}", method="POST")
+                button.btn.btn-danger(type="submit") Delete
+  a.btn.btn-primary(href="/portfolio/#{portfolioId}/transaction/edit") Add Transaction

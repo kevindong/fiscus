@@ -1,0 +1,11 @@
+extends layout
+
+block content
+  h1.text-center Uh oh, we ran into an error while processing your request. 
+  if msg
+    p.text-center
+      strong Here's some details on what went wrong: 
+      | #{msg}
+  p.font-weight-bold.text-center Maybe try that again? Otherwise, you can go to our 
+    a(href='/') homepage
+    | .

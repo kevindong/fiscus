@@ -20,8 +20,6 @@ exports.index = function(req, res) {
       let nsdqFormat = formatData(data.nsdqResponse);
       let djiaFormat = formatData(data.djiaResponse);
 
-      console.log(nsdqFormat);
-
       let quotes = await getIndexQuotes();
 
       // Normalize

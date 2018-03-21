@@ -1,0 +1,121 @@
+extends ../layout
+
+block content
+  p This is where the portfolio value graph will eventually go...
+  .card.mb-3
+    .card-body
+      h5.card-title Holdings
+      .table-responsive
+        table.table.mb-0
+          thead
+            tr
+              th(scope="col") Name
+              th(scope="col") Ticker
+              th(scope="col") Last
+              th(scope="col") Change
+              th(scope="col") Shares
+              th(scope="col") Cost
+              th(scope="col") Value
+              th(scope="col") Gain
+              th(scope="col") Gain %
+              th(scope="col") Day's gain
+              th(scope="col") Overall Return
+          tbody
+            tr
+              td Vanguard Total Stock Market
+              td VTI
+              td 145.34
+              td.green +0.06 (0.04%)
+              td 23.2120
+              td 2,899.10
+              td 3,373.63
+              td.green +474.53
+              td.green +16.37%
+              td.green +1.39
+              td.green +16.37%
+            tr
+              td Vanguard Total Intl
+              td VXUS
+              td 60.57
+              td.red -0.22 (-0.36%)
+              td 38.5710
+              td 2,008.27
+              td 2,373.63
+              td.green +327.97
+              td.green +16.33%
+              td.red -8.49
+              td.green +16.37%
+            tr
+              td Vanguard Total Bond
+              td BND
+              td 80.95
+              td.green +0.22 (0.27%)
+              td 5.0110
+              td 409.58
+              td 405.64
+              td.red -3.94
+              td.red -0.96%
+              td.green +1.10
+              td.red -0.96%
+            tr
+              td Vanguard Total Int Bond
+              td BNDX
+              td 54.20
+              td.red -0.01 (-0.02%)
+              td 4.0040
+              td 218.03
+              td 217.02
+              td.red -1.01
+              td.red -0.47%
+              td.red -0.04
+              td.red -0.47$
+            tr
+              td Cash
+              td $
+              td $15.60
+              td
+              td
+              td
+              td $15.60
+              td
+              td
+              td
+              td
+            tr(style="border-top: 2px solid black")
+              td Portfolio:
+              td
+              td
+              td.red -6.03 (-0.09%)
+              td
+              td $5,534.99
+              td $6,348.13
+              td.green +$797.55
+              td.green +14.41%
+              td.red -$6.03
+              td.green +14.41%
+
+  .card
+    .card-body
+      h5.card-title Transactions
+      .table-responsive
+        table.table.mb-0
+          thead
+            tr
+              th(scope="col") Name
+              th(scope="col") Action
+              th(scope="col") Ticker
+              th(scope="col") Date
+              th.text-right(scope="col") Total Cost
+              th.text-right(scope="col") Shares
+          tbody
+            each transaction in transactions
+              tr
+                td #{securityNames[transaction.ticker]}
+                td #{transaction.type}
+                td #{transaction.ticker}
+                td #{transaction.dateTransacted.toISOString().substring(0,10)}
+                td.text-right #{transaction.value}
+                td.text-right #{transaction.numShares}
+    .card-footer.text-right
+      a.btn.btn-primary.mr-1(href=`/portfolio/${portfolioId}/transaction/edit`) Add Transaction
+      a.btn.btn-primary.mr-1(href="/portfolio/"+portfolioId+"/transactions") Edit Transactions

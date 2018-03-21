@@ -1,0 +1,39 @@
+extends ../layout
+
+block content
+  form(action=`/portfolio/${portfolioId}/transaction/edit`, method=`POST`)
+    .card
+      .card-body
+        if transaction
+          h5.card-title Edit Existing Transaction
+        else
+          h5.card-title Add New Transaction
+        .form-group.restrict-width
+          label(for=`action`) Action
+          select.form-control#action(name=`action`, size=4)
+            each i in ['Buy', 'Sell', 'Short', 'Cover']
+              if transaction && transaction.type === i
+                option(selected="selected") #{i}
+              else
+                option #{i}
+        .form-group.restrict-width-500
+          label(for=`search-bar-transactions`) Ticker
+          select.form-control#search-bar-transactions(name=`ticker`, type=`text`, maxLength=8, value='#{transaction ? transaction.ticker : ""}')
+            if (transaction)
+              option(selected="selected", value="#{transaction.ticker}") #{yahooName}
+          small.form-text.text-muted Ticker should be at most 8 characters long.
+        .form-group
+          label(for=`date`) Date
+          input.form-control.restrict-width#date(name=`date`, type=`date`, value='#{transaction ? transaction.dateTransacted.toISOString().substring(0,10) : new Date().toISOString().substring(0,10)}')
+        .form-group
+          label(for=`value`) Value
+          input.form-control.restrict-width#value(name=`value`, type=`number`, min=`0`, step=`0.01`, max=`99999999.99`, value='#{transaction ? transaction.value : ""}')
+          small.form-text.text-muted Value must be between 0 and $99,999,999.99 (inclusive) and have no more than 2 decimal places.
+        .form-group
+          label(for=`shares`) Shares
+          input.form-control.restrict-width#shares(name=`shares`, type=`number`, min=`0.0001`, step=`0.0001`, max=`99999999.9999`, value='#{transaction ? transaction.numShares : ""}')
+          small.form-text.text-muted Shares must be greater than 0, at most 99,999,999.9999, and have no more than 4 decimal places.
+        input(type=`hidden`, name=`portfolioId`, value=`${portfolioId}`)
+        input(type=`hidden`, name=`transactionId`, value='#{transaction ? transaction.id : ""}')
+      .card-footer
+        button.btn.btn-primary(type=`submit`) #{transaction ? "Edit Transaction" : "Add Transaction"}
