@@ -16,3 +16,17 @@ $(function() {
     $(location).attr('href', `${window.location.origin}/ticker/details/${data.id}`)
   })
 });
+
+$(function() {
+  $('#search-bar-transactions').select2({
+    theme: 'bootstrap4',
+    width: 'inherit',
+    ajax: {
+      url: '/ticker/lookup',
+      dataType: 'json',
+      data: function(params) {
+        return { text: params.term };
+      }
+    }
+  });
+});

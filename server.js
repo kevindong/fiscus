@@ -4,11 +4,13 @@ var logger = require('morgan');
 var compression = require('compression');
 var methodOverride = require('method-override');
 var session = require('express-session');
+var RedisStore = require('connect-redis')(session);
 var flash = require('express-flash');
 var bodyParser = require('body-parser');
 var expressValidator = require('express-validator');
 var dotenv = require('dotenv');
 var passport = require('passport');
+const rp = require('request-promise');
 
 // Load environment variables from .env file
 dotenv.load();
@@ -18,6 +20,7 @@ var adminController = require('./controllers/admin');
 var userController = require('./controllers/user');
 var tickerController = require('./controllers/ticker');
 var splashController = require('./controllers/splash');
+var portfolioController = require('./controllers/portfolio');
 
 // Passport OAuth strategies
 require('./config/passport');
@@ -30,10 +33,32 @@ app.set('port', process.env.PORT || 3000);
 app.use(compression());
 app.use(logger('dev'));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(expressValidator());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// For custom validators:
+// true  === pass validation; approve
+// false === fail validation; reject
+const customValidators = {
+  action_type: function (val) {
+    let found = false;
+    ['Buy', 'Sell', 'Cover', 'Short'].forEach((x) => {
+      if (x === val) {
+        found = true;
+      }
+    })
+    return found;
+  }
+};
+app.use(expressValidator({customValidators}));
 app.use(methodOverride('_method'));
-app.use(session({ secret: process.env.SESSION_SECRET, resave: true, saveUninitialized: true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: true,
+  saveUninitialized: true,
+  store: new RedisStore({
+    url: process.env.REDIS_URL
+  })
+}));
 app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
@@ -71,6 +96,14 @@ app.post('/admin/deleteUser', adminController.ensureAuthenticated, adminControll
 app.post('/admin/email/:user_email', adminController.ensureAuthenticated, adminController.emailUser);
 app.post('/admin/emailAll', adminController.ensureAuthenticated, adminController.emailAll);
 app.post('/admin/resetAll', adminController.ensureAuthenticated, adminController.resetAll);
+
+// portfolio
+app.get('/portfolio', userController.ensureAuthenticated, portfolioController.home);
+app.get('/portfolio/:portfolioId/transactions', userController.ensureAuthenticated, portfolioController.editPortfolio);
+app.get('/portfolio/:portfolioId/transaction/edit', userController.ensureAuthenticated, portfolioController.editTransactionGet);
+app.get('/portfolio/:portfolioId/transaction/edit/:transactionId', userController.ensureAuthenticated, portfolioController.editTransactionGet);
+app.post('/portfolio/:portfolioId/transaction/edit', userController.ensureAuthenticated, portfolioController.editTransactionPost);
+app.post('/portfolio/:portfolioId/transaction/delete/:transactionId', userController.ensureAuthenticated, portfolioController.deleteTransaction);
 
 // Production error handler
 if (app.get('env') === 'production') {
