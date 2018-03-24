@@ -16,10 +16,24 @@ exports.tickerDetailsGet = async function(req, res) {
         const keyStats = await exports.iexKeyStatsGet(ticker);
         const logo = await exports.iexLogoGet(ticker);
         const quote = await exports.iexQuoteGet(ticker);
-        const chartData = await exports.iexChartGet(ticker, '1d');
-        const chart = formatData(chartData);
-        const chartYearData = await exports.iexYearChartGet(ticker);
-        const chartYear = await formatYearData(chartYearData);
+
+        const dayData = await exports.iexDayChartGet(ticker, '1d');
+        const chartDay = formatDayData(dayData);
+
+
+
+        // const monthData = await exports.iexChartGet(ticker, '1m');
+        // const chartMonth = await formatData(monthData);
+        //
+        // const thrMonthData = await exports.iexChartGet(ticker, '3m');
+        // const chartThrMonth = await formatData(thrMonthData);
+
+        const chartYearData = await exports.iexChartGet(ticker, '1y');
+        const chartYear = await formatData(chartYearData);
+
+        const chartMonth = await getMonthData(chartYearData);
+        const chartThrMonth = await getThrMonthData(chartYearData);
+
         const dividends = formatDividends(await getDividends(ticker));
         const splits = formatSplits(await getSplits(ticker));
         const lastPrice = quote.latestPrice;
@@ -34,7 +48,7 @@ exports.tickerDetailsGet = async function(req, res) {
         const low = ohlc.low;
         const high = ohlc.high;
         const color = (change >= 0) ? '#4CAF50' : '#F44336';
-        const baseline = [{x: chart[0].x, y: previousClose}, {x: chart[chart.length-1].x, y: previousClose}];
+        const baseline = [{x: chartDay[0].x, y: previousClose}, {x: chartDay[chartDay.length-1].x, y: previousClose}];
         res.render('details', {
             title: ticker + ' - Details',
             ticker,
@@ -53,10 +67,12 @@ exports.tickerDetailsGet = async function(req, res) {
             formatMoney, //function to format money, useful in view
             logoUrl: logo.url,
             keyStats,
-            chartData: JSON.stringify(chart),
+            chartDay: JSON.stringify(chartDay),
+            chartMonth: JSON.stringify(chartMonth),
+            chartThrMonth: JSON.stringify(chartThrMonth),
+            chartYear: JSON.stringify(chartYear),
             chartColor: JSON.stringify(color),
             baseline: JSON.stringify(baseline),
-            chartYear: JSON.stringify(chartYear),
             annotations: JSON.stringify(dividends.concat(splits))
         });
     } catch (e) {
@@ -156,15 +172,22 @@ const formatMoney = function(money) {
     return money.toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');
 };
 
-exports.iexChartGet = async function(ticker, timeFrame) {
+exports.iexDayChartGet = async function(ticker) {
   return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/chart/${timeFrame}?filter=date,minute,average,volume`,
+    uri: `${iextradingRoot}/stock/${ticker}/chart/1d?filter=date,minute,average,volume`,
+    json: true,
+  });
+};
+
+exports.iexChartGet = async function(ticker, timeframe) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/chart/${timeframe}?filter=date,close`,
     json: true,
   });
 };
 
 
-const formatData = function(data) {
+const formatDayData = function(data) {
   for(i in data) {
 
     if((data[i].average === 0) && (data[i].volume === 0)) {
@@ -179,20 +202,63 @@ const formatData = function(data) {
 
   }
 
-  console.log(data);
-
   return data;
 };
 
-exports.iexYearChartGet = async function(ticker) {
-  return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/chart/1y?filter=date,close`,
-    json: true,
-  });
+const getIndexOfDate = function(date, array) {
+
+  for(i in array) {
+    if(array[i].x === date) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+const getMonthData = function(data) {
+  let today = new Date();
+  let yesterday = new Date();
+  yesterday.setDate(today.getDate()-1);
+  let startDate = new Date();
+
+  startDate.setDate(yesterday.getDate());
+  startDate.setMonth(yesterday.getMonth()-1);
+
+  let start = formatDate(startDate);
+
+  let ind = getIndexOfDate(start, data);
+
+  if(ind === -1) {
+    return data.slice(-20);
+  } else {
+    return data.slice(ind);
+  }
+};
+
+const getThrMonthData = function(data) {
+  let today = new Date();
+  let yesterday = new Date();
+  yesterday.setDate(today.getDate()-1);
+  let startDate = new Date();
+
+  startDate.setDate(yesterday.getDate());
+  startDate.setMonth(yesterday.getMonth()-3);
+
+  let start = formatDate(startDate);
+
+  let ind = getIndexOfDate(start, data);
+
+  if(ind === -1) {
+    return data.slice(-60);
+  } else {
+    return data.slice(ind);
+  }
 };
 
 
-const formatYearData = function(data) {
+
+
+const formatData = function(data) {
     for(i in data) {
         data[i].x = data[i].date;
         data[i].y = data[i].close;
@@ -270,3 +336,23 @@ const formatSplits = function(data) {
 
   return splits;
 };
+
+/**
+ * Formats a date into the format used by AlphaVantage API
+ * @param date
+ * @returns {string}
+ */
+function formatDate(date) {
+  // Get yesterday's date
+  let dd = date.getDate();
+  let mm = date.getMonth() + 1; //January is 0!
+  let yyyy = date.getFullYear();
+
+  if (dd < 10) {
+    dd = '0' + dd;
+  }
+  if (mm < 10) {
+    mm = '0' + mm;
+  }
+  return (yyyy + '-' + mm + '-' + dd);
+}
