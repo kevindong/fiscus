@@ -2,6 +2,8 @@ var User = require('../models/User');
 var Portfolio = require('../models/Portfolio');
 var Transaction = require('../models/Transaction');
 var TickerController = require('../controllers/ticker.js');
+const rp = require('request-promise');
+const iextradingRoot = 'https://api.iextrading.com/1.0';
 
 /**
  * GET /portfolio
@@ -271,9 +273,15 @@ exports.editTransactionPost = async function (req, res) {
   }
 
   // TODO - Update Portfolio Values
-  updatePortfolioValue();
+  try {
+    await updatePortfolioValue(transaction.id,req.user.attributes.id);
+  } catch(err) {
+    console.log(err);
+    return res.render('error', {msg: `An error occurred while updating your portfolio`, title: 'Error'});
+  }
 
-  req.flash('success', {msg: 'Your transaction has been added/modified.'})
+
+  req.flash('success', {msg: 'Your transaction has been added/modified.'});
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
 
@@ -314,16 +322,95 @@ exports.deleteTransaction = async function (req, res) {
  */
 
 
-async function updatePortfolioValue(transId) {
-  // Get transaction from DB
-  transaction = await new Transaction({id: transId}).fetch();
+async function updatePortfolioValue(transId, userId) {
 
-  // Get date from transaction
-  let date = transaction.dateTransacted;
+  // Get transaction from DB
+  let transaction = await new Transaction({id: transId}).fetch();
 
   // Get Portfolio from DB
+  let portfolio = await new Portfolio({userId: userId}).fetch(); // Need to update for multiple portfolios
+
+  // Get date from transaction
+  let date = new Date(transaction.attributes.dateTransacted);
+
+  // Get today in date form
+  let today = new Date();
+
+  // Get the stock data for the last year
+  let data = await iexChartGet(transaction.attributes.ticker, '1y');
+
+  // No portfolio yet
+  if(portfolio.attributes.value === null) {
+    if(transaction.attributes.type === 'Sell') {
+      // TODO: Break (Throw Error)
+    } else if(transaction.attributes.type === 'Cover') {
+      // TODO: Break (Throw Error)
+    }
+
+    let values = [];
+
+    let day = {
+      date: null,
+      stocks: [],
+      cash: 0,
+      value: null
+    };
+
+    let i = getIndexOfDate(formatDate(date), data);
+
+    while(i < data.length) {
+
+      // Add day to values string
+      day.date = data[i].date;
+
+      if(transaction.attributes.type === 'Buy') {
+        day.stocks.push({ticker: transaction.attributes.ticker, shares: transaction.attributes.numShares});
+        day.cash = 0;
+        day.value = data[i].close * transaction.attributes.numShares;
+      } else {
+        day.stocks.push({ticker: transaction.attributes.ticker, shares: (-1 * transaction.attributes.numShares)});
+        day.cash = transaction.value * transaction.attributes.numShares;
+        day.value = day.cash + (day.stocks[0].shares * data[i].close);
+      }
+
+      values.push(day);
+
+      i++;
+    }
+
+    portfolio.attributes.value = {values};
+
+    await portfolio.save();
 
 
+  } else {
+    let values = portfolio.attributes.value.values;
+
+    let day = {
+      date: null,
+      stocks: [],
+      cash: 0,
+      value: null
+    };
+
+    let i = getClosestDay(date, data);
+    let j = getClosestDay(date, values);
+
+    while(i < data.length) {
+
+      if(transaction.attributes.type === 'Buy') {
+        // update values[j] with info from data[i]
+
+
+      } else if(transaction.attributes.type === 'Short') {
+
+      }
+    }
+
+
+  }
+
+  /*
   if(dateExists) {
     // Update all future, valid dates with transaction
 
@@ -340,6 +427,69 @@ async function updatePortfolioValue(transId) {
   } else {
     // Create instances on dates leading up to dates with data
   }
+  */
 
 
+}
+
+async function iexChartGet(ticker, timeframe) {
+
+  console.log(ticker);
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/chart/${timeframe}?filter=date,close`,
+    json: true,
+  });
+}
+
+/**
+ * Formats a date into the format used by AlphaVantage API
+ * @param date
+ * @returns {string}
+ */
+function formatDate(date) {
+  let dd = date.getDate();
+  let mm = date.getMonth() + 1; //January is 0!
+  let yyyy = date.getFullYear();
+
+  if (dd < 10) {
+    dd = '0' + dd;
+  }
+  if (mm < 10) {
+    mm = '0' + mm;
+  }
+  return (yyyy + '-' + mm + '-' + dd);
+}
+
+const getIndexOfDate = function(date, array) {
+
+  for(i in array) {
+    if(array[i].date === date) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+
+function getClosestDay(date, array) {
+
+  for(i in array) {
+    let tempDate = new Date(array[i].date);
+
+    if(tempDate >= date) {
+      return i;
+    }
+  }
+
+  return -1
+}
+
+
+function getIndexOfStock(ticker, values) {
+  for(i in values) {
+    if(values[i].ticker === ticker) {
+      return i;
+    }
+  }
+  return -1;
 }
