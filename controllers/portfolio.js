@@ -119,7 +119,7 @@ exports.editPortfolio = async function (req, res) {
     hasAccess = await hasPortfolioAccess(req.user.attributes.id, req.params.portfolioId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to see this page.`});
+    return res.render('error', {msg: `An error occurred while evaluating your right to see this page.`});
   }
   if (!hasAccess) {
     return res.render('error', {msg: `You don't have rights to see this portfolio.`});
@@ -181,7 +181,7 @@ exports.editTransactionGet = async function (req, res) {
     hasAccess = await hasTransactionAccess(req.user.attributes.id, req.params.portfolioId, req.params.transactionId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to see this page.`, title: 'Error'});
+    return res.render('error', {msg: `An error occurred while evaluating your right to see this page.`, title: 'Error'});
   }
   if (!hasAccess) {
     return res.render('error', {msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error'});
@@ -264,11 +264,15 @@ exports.editTransactionPost = async function (req, res) {
     }
     transaction = await transaction.save();
   } catch (err) {
-    const msg = `An error occured while adding or editing a transaction.`;
+    const msg = `An error occurred while adding or editing a transaction.`;
     console.error(msg);
     console.error(err);
     return res.render(`error`, {msg, title: `Error`});
   }
+
+  // TODO - Update Portfolio Values
+  updatePortfolioValue();
+
   req.flash('success', {msg: 'Your transaction has been added/modified.'})
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
@@ -283,7 +287,7 @@ exports.deleteTransaction = async function (req, res) {
     hasAccess = await hasTransactionAccess(req.user.attributes.id, req.params.portfolioId, req.params.transactionId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to perform this action.`, title: 'Error'});
+    return res.render('error', {msg: `An error occurred while evaluating your right to perform this action.`, title: 'Error'});
   }
   if (!hasAccess) {
     return res.render('error', {msg: `You don't have rights to delete this transaction.`, title: 'Error'});
@@ -294,7 +298,7 @@ exports.deleteTransaction = async function (req, res) {
   try { 
     transaction = new Transaction({id: req.params.transactionId}).destroy()
   } catch (err) {
-    const msg = `An error occured while deleting the transaction.`;
+    const msg = `An error occurred while deleting the transaction.`;
     console.error(msg);
     console.error(err);
     return res.render(`error`, {msg, title: `Error`});
@@ -302,3 +306,40 @@ exports.deleteTransaction = async function (req, res) {
   req.flash('success', {msg: 'Your transaction has been deleted.'});
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
+
+// Begin Portfolio Adjustment Code
+
+/*
+  {date: "----/--/--", stocks: [{ticker: "-----", shares: --}, {ticker: "-----", shares: --}], value: "----.--"}
+ */
+
+
+async function updatePortfolioValue(transId) {
+  // Get transaction from DB
+  transaction = await new Transaction({id: transId}).fetch();
+
+  // Get date from transaction
+  let date = transaction.dateTransacted;
+
+  // Get Portfolio from DB
+
+
+  if(dateExists) {
+    // Update all future, valid dates with transaction
+
+    if(buy) { // Buy
+
+    } else if(sell) { // Sell
+
+    } else if(short) { // Short
+
+    } else {  // Cover
+
+    }
+
+  } else {
+    // Create instances on dates leading up to dates with data
+  }
+
+
+}
