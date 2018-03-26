@@ -537,13 +537,26 @@ function getIndexOfStock(ticker, values) {
   return -1;
 }
 
+/**
+ * Boolean check of whether of not the first date is after the second
+ *
+ * @param date1
+ * @param date2
+ * @returns {boolean}
+ */
 function isAfter(date1, date2) {
-  let dateFirst = new Date(date1);
-  let dateScnd = new Date(date2);
+  let dateFirst = parseDateString(date1);
+  let dateScnd = parseDateString(date2);
 
   return dateFirst > dateScnd;
 }
 
+/**
+ * Function to parse date strings of the format "YYYY-MM-DD" correctly every time
+ *
+ * @param date
+ * @returns {Date}
+ */
 function parseDateString(date) {
   let parts = date.split('-');
 
