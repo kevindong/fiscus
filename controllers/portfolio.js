@@ -341,36 +341,32 @@ async function updatePortfolioValue(transId, userId) {
 
   // No portfolio yet
   if(portfolio.attributes.value === null) {
-    if(transaction.attributes.type === 'Sell') {
-      // TODO: Break (Throw Error)
-    } else if(transaction.attributes.type === 'Cover') {
+
+    if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
       // TODO: Break (Throw Error)
     }
 
     let values = [];
 
-    let day = {
-      date: null,
-      stocks: [],
-      cash: 0,
-      value: null
-    };
-
     let i = getIndexOfDate(formatDate(date), data);
 
     while(i < data.length) {
+      let day = {};
 
       // Add day to values string
       day.date = data[i].date;
 
-      if(transaction.attributes.type === 'Buy') {
-        day.stocks.push({ticker: transaction.attributes.ticker, shares: transaction.attributes.numShares});
-        day.cash = 0;
-        day.value = data[i].close * transaction.attributes.numShares;
-      } else {
-        day.stocks.push({ticker: transaction.attributes.ticker, shares: (-1 * transaction.attributes.numShares)});
-        day.cash = transaction.value * transaction.attributes.numShares;
-        day.value = day.cash + (day.stocks[0].shares * data[i].close);
+      switch(transaction.attributes.type) {
+        case 'Buy':
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: transaction.attributes.numShares}];
+          day.cash = 0;
+          day.value = data[i].close * transaction.attributes.numShares;
+          break;
+        case 'Short':
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * transaction.attributes.numShares)}];
+          day.cash = transaction.value * transaction.attributes.numShares;
+          day.value = day.cash + (day.stocks[0].shares * data[i].close);
+          break;
       }
 
       values.push(day);
@@ -384,28 +380,75 @@ async function updatePortfolioValue(transId, userId) {
 
 
   } else {
+
+    console.log('Has a portfolio'); // REMOVE
+
     let values = portfolio.attributes.value.values;
 
-    let day = {
-      date: null,
-      stocks: [],
-      cash: 0,
-      value: null
-    };
+
 
     let i = getClosestDay(date, data);
     let j = getClosestDay(date, values);
+    let valueStack = [];
 
-    while(i < data.length) {
+    //console.log('i: ' + i);
+    //console.log('j: ' + j);
 
-      if(transaction.attributes.type === 'Buy') {
-        // update values[j] with info from data[i]
-
-
-      } else if(transaction.attributes.type === 'Short') {
-
+    while(isAfter(values[j].date, data[i].date)) {
+      if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
+        // TODO: Throw Error
+        console.log('Bad Transaction Type')
       }
+
+      let day = {};
+
+      //console.log('In the loop');
+
+      // Add day to values string
+      day.date = data[i].date;
+      console.log(data[i].date);
+
+      switch(transaction.attributes.type) {
+        case 'Buy':
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: transaction.attributes.numShares}];
+          day.cash = 0;
+          day.value = data[i].close * transaction.attributes.numShares;
+          break;
+        case 'Short':
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * transaction.attributes.numShares)}];
+          day.cash = transaction.value * transaction.attributes.numShares;
+          day.value = day.cash + (day.stocks[0].shares * data[i].close);
+          break;
+      }
+
+      valueStack.push(day); // Add day to portfolio values
+      console.log(day);
+
+      i++; // Get next day of data
     }
+
+    // Un-pop stack onto beginning of values array
+    while(valueStack.length > 0) {
+      values.unshift(valueStack.pop());
+    }
+
+    // Commit to DB
+    console.log(values);
+    portfolio.attributes.value = {values};
+    portfolio.save();
+
+    // while(i < data.length) {
+    //
+    //
+    //
+    //   if(transaction.attributes.type === 'Buy') {
+    //     // update values[j] with info from data[i]
+    //
+    //
+    //   } else if(transaction.attributes.type === 'Short') {
+    //
+    //   }
+    // }
 
 
   }
@@ -474,7 +517,7 @@ const getIndexOfDate = function(date, array) {
 function getClosestDay(date, array) {
 
   for(i in array) {
-    let tempDate = new Date(array[i].date);
+    let tempDate = parseDateString(array[i].date);
 
     if(tempDate >= date) {
       return i;
@@ -492,4 +535,17 @@ function getIndexOfStock(ticker, values) {
     }
   }
   return -1;
+}
+
+function isAfter(date1, date2) {
+  let dateFirst = new Date(date1);
+  let dateScnd = new Date(date2);
+
+  return dateFirst > dateScnd;
+}
+
+function parseDateString(date) {
+  let parts = date.split('-');
+
+  return new Date(parts[0], parts[1] - 1, parts[2]);
 }
