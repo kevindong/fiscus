@@ -366,7 +366,7 @@ async function updatePortfolioValue(transId, userId) {
         case 'Short':
           day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * numShares)}];
           day.cash = transaction.value * numShares;
-          day.value = day.cash + (day.stocks[0].shares * data[i].close);
+          day.value = (day.stocks[0].shares * data[i].close);
           break;
       }
 
@@ -391,6 +391,7 @@ async function updatePortfolioValue(transId, userId) {
     //console.log('i: ' + i);
     //console.log('j: ' + j);
 
+    // Add values to dates before beginning of portfolio
     while(isAfter(values[j].date, data[i].date)) {
       if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
         // TODO: Throw Error
@@ -412,7 +413,7 @@ async function updatePortfolioValue(transId, userId) {
         case 'Short':
           day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * numShares)}];
           day.cash = transaction.value * numShares;
-          day.value = day.cash + (day.stocks[0].shares * data[i].close);
+          day.value = (day.stocks[0].shares * data[i].close);
           break;
       }
 
@@ -430,7 +431,7 @@ async function updatePortfolioValue(transId, userId) {
     let found;
 
 
-    // TODO : Update current data with transaction
+    // Update Values Already in Portfolio
     while(i < data.length) {
       switch(transaction.attributes.type) {
         case 'Buy':
@@ -458,6 +459,11 @@ async function updatePortfolioValue(transId, userId) {
               values[j].stocks[k].shares -= numShares;
               values[j].cash += numShares * transaction.get('value');
               values[j].value = data[i].close * values[j].stocks[k].shares;
+
+              // Remove record if sold remaining shares
+              if(values[j].stocks[k].shares === 0) {
+                values[j].stocks.splice(k, 1);
+              }
 
               found = true;
               break;
@@ -492,7 +498,6 @@ async function updatePortfolioValue(transId, userId) {
     // TODO : Update current day with today's data
 
     // Commit to DB
-    console.log(values);
     portfolio.attributes.value = {values};
     portfolio.save();
 
