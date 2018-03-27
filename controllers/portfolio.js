@@ -339,6 +339,9 @@ async function updatePortfolioValue(transId, userId) {
   // Get the stock data for the last year
   let data = await iexChartGet(transaction.attributes.ticker, '1y');
 
+  let numShares = parseFloat(transaction.attributes.numShares);
+  let ticker = transaction.attributes.ticker;
+
   // No portfolio yet
   if(portfolio.attributes.value === null) {
 
@@ -358,13 +361,13 @@ async function updatePortfolioValue(transId, userId) {
 
       switch(transaction.attributes.type) {
         case 'Buy':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: transaction.attributes.numShares}];
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
           day.cash = 0;
-          day.value = data[i].close * transaction.attributes.numShares;
+          day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * transaction.attributes.numShares)}];
-          day.cash = transaction.value * transaction.attributes.numShares;
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * numShares)}];
+          day.cash = transaction.value * numShares;
           day.value = day.cash + (day.stocks[0].shares * data[i].close);
           break;
       }
@@ -381,10 +384,7 @@ async function updatePortfolioValue(transId, userId) {
 
   } else {
 
-    console.log('Has a portfolio'); // REMOVE
-
     let values = portfolio.attributes.value.values;
-
 
 
     let i = getClosestDay(date, data);
@@ -397,33 +397,29 @@ async function updatePortfolioValue(transId, userId) {
     while(isAfter(values[j].date, data[i].date)) {
       if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
         // TODO: Throw Error
-        console.log('Bad Transaction Type')
+        console.log('Bad Transaction Type');
+        return;
       }
 
-      let day = {};
-
-      //console.log('In the loop');
+      let day = {}; // Initialize empty object
 
       // Add day to values string
       day.date = data[i].date;
-      console.log(data[i].date);
 
       switch(transaction.attributes.type) {
         case 'Buy':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: transaction.attributes.numShares}];
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
           day.cash = 0;
-          day.value = data[i].close * transaction.attributes.numShares;
+          day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * transaction.attributes.numShares)}];
-          day.cash = transaction.value * transaction.attributes.numShares;
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * numShares)}];
+          day.cash = transaction.value * numShares;
           day.value = day.cash + (day.stocks[0].shares * data[i].close);
           break;
       }
 
       valueStack.push(day); // Add day to portfolio values
-      console.log(day);
-
       i++; // Get next day of data
     }
 
@@ -432,52 +428,69 @@ async function updatePortfolioValue(transId, userId) {
       values.unshift(valueStack.pop());
     }
 
+    j = getIndexOfDate(data[i].date, values);
+
+
+    // TODO : Update current data with transaction
+    while(i < data.length) {
+      switch(transaction.attributes.type) {
+        case 'Buy':
+          let found = false;
+          for(k in values[j].stocks) {
+            if(values[j].stocks[k].ticker === ticker) {
+
+              values[j].value -= data[i].close * values[j].stocks[k].shares;
+              values[j].stocks[k].shares += numShares;
+              values[j].value += data[i].close * values[j].stocks[k].shares;
+
+              found = true;
+              break;
+            }
+          }
+          if(!found) {
+            values[j].stocks.push({ticker: transaction.attributes.ticker, shares: numShares});
+          }
+          break;
+        case 'Sell':
+          for(k in values[j].stocks) {
+            if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
+              // TODO : Update sell
+            }
+          }
+          break;
+        case 'Short':
+          for(k in values[j].stocks) {
+            if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
+              // TODO : Update short
+            }
+          }
+          break;
+        case 'Cover':
+          for(k in values[j].stocks) {
+            if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
+              // TODO : Update cover
+            }
+          }
+          break;
+      }
+      i++;
+      j++;
+    }
+
+
+    // TODO : Update current day with today's data
+
     // Commit to DB
     console.log(values);
     portfolio.attributes.value = {values};
     portfolio.save();
 
-    // while(i < data.length) {
-    //
-    //
-    //
-    //   if(transaction.attributes.type === 'Buy') {
-    //     // update values[j] with info from data[i]
-    //
-    //
-    //   } else if(transaction.attributes.type === 'Short') {
-    //
-    //   }
-    // }
-
 
   }
-
-  /*
-  if(dateExists) {
-    // Update all future, valid dates with transaction
-
-    if(buy) { // Buy
-
-    } else if(sell) { // Sell
-
-    } else if(short) { // Short
-
-    } else {  // Cover
-
-    }
-
-  } else {
-    // Create instances on dates leading up to dates with data
-  }
-  */
-
 
 }
 
 async function iexChartGet(ticker, timeframe) {
-
-  console.log(ticker);
   return rp({
     uri: `${iextradingRoot}/stock/${ticker}/chart/${timeframe}?filter=date,close`,
     json: true,

@@ -1,4 +1,5 @@
-const iextradingRoot = 'https://api.iextrading.com/1.0';
+
+
 const rp = require('request-promise');
 const validExchanges = ['NAS', 'NYSE', 'NYQ', 'NYS', 'ASE', 'PCX']; //Used as a whitelist for Yahoo name completion
 
