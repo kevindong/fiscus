@@ -1,7 +1,13 @@
 
 
 const rp = require('request-promise');
-const validExchanges = ['NAS', 'NYSE', 'NYQ', 'NYS', 'ASE', 'PCX']; //Used as a whitelist for Yahoo name completion
+const redis = require('redis');
+const redisClient = redis.createClient({
+    url: process.env.REDIS_URL,
+});
+const {promisify} = require('util');
+const redisGetAsync = promisify(redisClient.get).bind(redisClient);
+const redisSetAsync = promisify(redisClient.set).bind(redisClient);
 
 /*
  * GET /ticker/details/[ticker]
@@ -88,14 +94,15 @@ exports.tickerDetailsGet = async function(req, res) {
  * GET /ticker/lookup?text=[text]
  * Looks up [text] and returns the best matched tickers
  */
-exports.lookupTickerGet = function(req, res) {
+exports.lookupTickerGet = async function(req, res) {
     if (!req.query.text)
         return res.send({ results: [] });
     const url = `http://d.yimg.com/aq/autoc?query=${req.query.text}&region=US&lang=en-US`;
+    const knownTickers = await getKnownTickersRedis();
     rp(url)
         .then((response) => {
             const data = JSON.parse(response);
-            const tickers = data['ResultSet']['Result'].filter((obj) => validExchanges.includes(obj.exch));
+            const tickers = data['ResultSet']['Result'].filter((obj) => knownTickers.includes(obj.symbol));
             const select2format = { results: tickers.map((obj) => { return { id: obj.symbol, text: `${obj.symbol} - ${obj.name}` }; })};
             res.send(select2format);
         })
@@ -107,11 +114,13 @@ exports.lookupTickerGet = function(req, res) {
 
 exports.yahooNameExchangeGet = async function(ticker) {
     const uri = `http://d.yimg.com/aq/autoc?query=${ticker}&region=US&lang=en-US`;
+    const getKnownTickers = getKnownTickersRedis();
     return rp({uri, json:true,})
-        .then((response) => {
+        .then(async (response) => {
             if (response['ResultSet']['Result'].length === 0)
                 return Promise.resolve({name: '', exchange: ''});
-            const tickers = response['ResultSet']['Result'].filter((obj) => validExchanges.includes(obj.exch));
+            const knownTickers = await getKnownTickers;
+            const tickers = response['ResultSet']['Result'].filter((obj) => knownTickers.includes(obj.symbol));
             return Promise.resolve({name: tickers[0].name, exchange: tickers[0].exchDisp});
         });
 };
@@ -357,3 +366,38 @@ function formatDate(date) {
   }
   return (yyyy + '-' + mm + '-' + dd);
 }
+
+
+/**
+ * Update the known tickers in redis
+ */
+const updateKnownTickersRedis = async () => {
+    const tickers = rp(`${iextradingRoot}/ref-data/symbols`);
+    try {
+        //Parse iex into an object, remove disabled tickers, and save only the ticker/symbol
+        const filteredTickers = JSON.parse(await tickers).filter((obj) => obj.isEnabled).map((obj) => obj.symbol);
+        return redisSetAsync('knownTickers', JSON.stringify(filteredTickers), 'EX', 24*60*60); //Save for 1 day
+    } catch (e) {
+        console.log(e);
+    }
+};
+
+/**
+ * Get the known tickers from redis
+ */
+const getKnownTickersRedis = async () => {
+    try {
+        const tickers = redisGetAsync('knownTickers');
+        if (await tickers === null) {
+            throw new Error('Redis: knownTickers needs updating.');
+        }
+        return tickers;
+    } catch (e) {
+        //There was an error getting the data from redis
+        //It might have expired, update it and retry
+        console.log(e);
+        await updateKnownTickersRedis();
+        const tickers = redisGetAsync('knownTickers');
+        return tickers;
+    }
+};

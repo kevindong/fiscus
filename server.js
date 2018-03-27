@@ -1,4 +1,5 @@
 var express = require('express');
+var sslRedirect = require('heroku-ssl-redirect');
 var path = require('path');
 var logger = require('morgan');
 var compression = require('compression');
@@ -30,6 +31,7 @@ var app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 app.set('port', process.env.PORT || 3000);
+app.use(sslRedirect());
 app.use(compression());
 app.use(logger('dev'));
 app.use(bodyParser.json());
