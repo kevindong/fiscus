@@ -370,7 +370,7 @@ async function updatePortfolioValue(transId, userId) {
           break;
         case 'Short':
           day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)}];
-          day.cash = transaction.value * numShares;
+          day.cash = transaction.attributes.value * numShares;
           day.value = (day.stocks[0].shares * data[i].close);
           break;
       }
@@ -417,7 +417,7 @@ async function updatePortfolioValue(transId, userId) {
           break;
         case 'Short':
           day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)}];
-          day.cash = transaction.value * numShares;
+          day.cash = transaction.attributes.value * numShares;
           day.value = (day.stocks[0].shares * data[i].close);
           break;
       }
@@ -481,27 +481,25 @@ async function updatePortfolioValue(transId, userId) {
           }
           break;
         case 'Short':
+          found = false;
           for(k in values[j].stocks) {
-            if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
-              // TODO : TEST
-              found = false;
-              for(k in values[j].stocks) {
-                if(values[j].stocks[k].ticker === ('$' + ticker)) {
+            if(values[j].stocks[k].ticker === ('$' + ticker)) {
 
-                  values[j].stocks[k].shares -= numShares;
-                  values[j].value = data[i].close * values[j].stocks[k].shares;
+              console.log('I smell like beef');
 
-                  found = true;
-                  break;
-                }
-              }
-              if(!found) {
-                values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)});
-              }
+              values[j].stocks[k].shares -= numShares;
+              values[j].value = data[i].close * values[j].stocks[k].shares;
+              values[j].cash = transaction.attributes.value * numShares;
+
+              found = true;
               break;
             }
           }
+          if(!found) {
+            values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)});
+          }
           break;
+
         case 'Cover':
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
