@@ -324,11 +324,8 @@ exports.deleteTransaction = async function (req, res) {
 
 async function updatePortfolioValue(transId, userId) {
 
-  // Get transaction from DB
-  let transaction = await new Transaction({id: transId}).fetch();
-
-  // Get Portfolio from DB
-  let portfolio = await new Portfolio({userId: userId}).fetch(); // Need to update for multiple portfolios
+  // Wait for promises to be filled
+  let [transaction, portfolio] =  await Promise.all([new Transaction({id: transId}).fetch(), new Portfolio({userId: userId}).fetch()]);
 
   // Get date from transaction
   let date = new Date(transaction.attributes.dateTransacted);
@@ -339,6 +336,7 @@ async function updatePortfolioValue(transId, userId) {
   // Get the stock data for the last year
   let data = await iexChartGet(transaction.attributes.ticker, '1y');
 
+  // Get some commonly used attributes
   let numShares = parseFloat(transaction.attributes.numShares);
   let ticker = transaction.attributes.ticker;
 
@@ -380,7 +378,6 @@ async function updatePortfolioValue(transId, userId) {
     portfolio.attributes.value = {values};
 
     await portfolio.save();
-
 
   } else {
 
@@ -430,18 +427,19 @@ async function updatePortfolioValue(transId, userId) {
 
     j = getIndexOfDate(data[i].date, values);
 
+    let found;
+
 
     // TODO : Update current data with transaction
     while(i < data.length) {
       switch(transaction.attributes.type) {
         case 'Buy':
-          let found = false;
+          found = false;
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ticker) {
 
-              values[j].value -= data[i].close * values[j].stocks[k].shares;
               values[j].stocks[k].shares += numShares;
-              values[j].value += data[i].close * values[j].stocks[k].shares;
+              values[j].value = data[i].close * values[j].stocks[k].shares;
 
               found = true;
               break;
@@ -452,10 +450,23 @@ async function updatePortfolioValue(transId, userId) {
           }
           break;
         case 'Sell':
+          found = false;
+
           for(k in values[j].stocks) {
-            if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
-              // TODO : Update sell
+            if(values[j].stocks[k].ticker === ticker) {
+
+              values[j].stocks[k].shares -= numShares;
+              values[j].cash += numShares * transaction.get('value');
+              values[j].value = data[i].close * values[j].stocks[k].shares;
+
+              found = true;
+              break;
             }
+          }
+
+          if(!found) {
+            console.log('Couldn\'t find stock to sell');
+            // TODO : Throw Error
           }
           break;
         case 'Short':
