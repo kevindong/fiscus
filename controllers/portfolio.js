@@ -228,7 +228,7 @@ exports.editTransactionPost = async function (req, res) {
     hasAccess = await hasTransactionAccess(req.user.attributes.id, req.params.portfolioId, req.params.transactionId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to see this page.`, title: 'Error'});
+    return res.render('error', {msg: `An error occurred while evaluating your right to see this page.`, title: 'Error'});
   }
   if (!hasAccess) {
     return res.render('error', {msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error'});
@@ -343,20 +343,25 @@ async function updatePortfolioValue(transId, userId) {
   // No portfolio yet
   if(portfolio.attributes.value === null) {
 
+    // Check if the requested transaction is valid for a user with no current values
     if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
-      // TODO: Break (Throw Error)
+      throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
     }
 
+    // Initialize empty values array
     let values = [];
+
 
     let i = getIndexOfDate(formatDate(date), data);
 
+    // Create entries for every day up to the last day of trading
     while(i < data.length) {
       let day = {};
 
       // Add day to values string
       day.date = data[i].date;
 
+      // Chose between buy or sell
       switch(transaction.attributes.type) {
         case 'Buy':
           day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
@@ -364,39 +369,38 @@ async function updatePortfolioValue(transId, userId) {
           day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * numShares)}];
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)}];
           day.cash = transaction.value * numShares;
           day.value = (day.stocks[0].shares * data[i].close);
           break;
       }
 
+      // Add day to values
       values.push(day);
-
       i++;
     }
 
+    // Update model
     portfolio.attributes.value = {values};
 
+    // Save to database
     await portfolio.save();
 
   } else {
 
+    // Get values array from user portfolio
     let values = portfolio.attributes.value.values;
 
-
+    // Get index of date closest to the date of the transaction
     let i = getClosestDay(date, data);
     let j = getClosestDay(date, values);
     let valueStack = [];
 
-    //console.log('i: ' + i);
-    //console.log('j: ' + j);
-
     // Add values to dates before beginning of portfolio
     while(isAfter(values[j].date, data[i].date)) {
       if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
-        // TODO: Throw Error
         console.log('Bad Transaction Type');
-        return;
+        throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
       }
 
       let day = {}; // Initialize empty object
@@ -404,6 +408,7 @@ async function updatePortfolioValue(transId, userId) {
       // Add day to values string
       day.date = data[i].date;
 
+      // Choose between buy or short
       switch(transaction.attributes.type) {
         case 'Buy':
           day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
@@ -411,7 +416,7 @@ async function updatePortfolioValue(transId, userId) {
           day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: (-1 * numShares)}];
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)}];
           day.cash = transaction.value * numShares;
           day.value = (day.stocks[0].shares * data[i].close);
           break;
@@ -426,10 +431,10 @@ async function updatePortfolioValue(transId, userId) {
       values.unshift(valueStack.pop());
     }
 
+    // Get index of date of value added
     j = getIndexOfDate(data[i].date, values);
 
-    let found;
-
+    let found; // Declare found
 
     // Update Values Already in Portfolio
     while(i < data.length) {
@@ -472,13 +477,28 @@ async function updatePortfolioValue(transId, userId) {
 
           if(!found) {
             console.log('Couldn\'t find stock to sell');
-            // TODO : Throw Error
+            throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
           }
           break;
         case 'Short':
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
-              // TODO : Update short
+              // TODO : TEST
+              found = false;
+              for(k in values[j].stocks) {
+                if(values[j].stocks[k].ticker === ('$' + ticker)) {
+
+                  values[j].stocks[k].shares -= numShares;
+                  values[j].value = data[i].close * values[j].stocks[k].shares;
+
+                  found = true;
+                  break;
+                }
+              }
+              if(!found) {
+                values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)});
+              }
+              break;
             }
           }
           break;
