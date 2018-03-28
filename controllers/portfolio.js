@@ -325,6 +325,12 @@ exports.deleteTransaction = async function (req, res) {
 
 async function updatePortfolioValue(transId, userId) {
 
+  let fresh = await keepFresh(userId);
+
+  if(!fresh) {
+    throw 'Failed to update portfolio';
+  }
+
   // Wait for promises to be filled
   let [transaction, portfolio] =  await Promise.all([new Transaction({id: transId}).fetch(), new Portfolio({userId: userId}).fetch()]);
 
@@ -370,9 +376,9 @@ async function updatePortfolioValue(transId, userId) {
           day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: numShares}];
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: -numShares}];
           day.cash = transaction.attributes.value * numShares;
-          day.value = (-1 * numShares * data[i].close);
+          day.value = (-numShares * data[i].close);
           break;
       }
 
@@ -417,7 +423,7 @@ async function updatePortfolioValue(transId, userId) {
           day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: numShares}];
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: -numShares}];
           day.cash = transaction.attributes.value * numShares;
           day.value = (-1 * numShares * data[i].close);
           break;
@@ -491,7 +497,7 @@ async function updatePortfolioValue(transId, userId) {
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ('$' + ticker)) {
 
-              values[j].stocks[k].shares += numShares;
+              values[j].stocks[k].shares -= numShares;
               values[j].cash += transaction.attributes.value * numShares;
 
               found = true;
@@ -499,7 +505,8 @@ async function updatePortfolioValue(transId, userId) {
             }
           }
           if(!found) {
-            values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: numShares});
+            values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: -numShares});
+            values[j].cash += transaction.attributes.value * numShares;
           }
 
           values[j].value -= data[i].close * numShares;
@@ -512,7 +519,7 @@ async function updatePortfolioValue(transId, userId) {
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ('$' + ticker)) {
 
-              values[j].stocks[k].shares -= numShares;
+              values[j].stocks[k].shares += numShares;
               values[j].value += data[i].close * numShares;
 
               // Remove record if sold remaining shares
@@ -654,14 +661,15 @@ async function keepFresh(userId) {
 
   let values = portfolio.attributes.value.values;
 
-  if(!values[-1].stocks.length) {
-    let cash = values[-1].cash;
+
+  if(!values[values.length-1].stocks.length) {
+    let cash = values[values.length-1].cash;
 
     let data = await iexChartGet('GE', '1y');
 
     let day = {};
 
-    let dataIndx = getIndexOfDate(values[-1].date, data);
+    let dataIndx = getIndexOfDate(values[values.length-1].date, data);
     dataIndx++;
 
     while(dataIndx < data.length) {
@@ -679,11 +687,11 @@ async function keepFresh(userId) {
 
   let stocks = [];
 
-  for(i in values[-1].stocks) {
-    if(values[-1].stocks[i].ticker.charAt(0) === '$') {
-      stocks.push(values[-1].stocks[i].ticker.substr(1));
+  for(i in values[values.length-1].stocks) {
+    if(values[values.length-1].stocks[i].ticker.charAt(0) === '$') {
+      stocks.push(values[values.length-1].stocks[i].ticker.substr(1));
     } else {
-      stocks.push(values[-1].stocks[i].ticker);
+      stocks.push(values[values.length-1].stocks[i].ticker);
     }
 
   }
@@ -705,26 +713,30 @@ async function keepFresh(userId) {
   }
 
   for(i in response) {
-    stockData[values[-1].stocks[i].ticker] = response[i];
+    stockData[values[values.length-1].stocks[i].ticker] = response[i];
   }
 
-  let cash = values[-1].cash;
+  let cash = values[values.length-1].cash;
+  let oldStocks = values[values.length-1].stocks;
 
 
-  let dataIndx = getIndexOfDate(values[-1].date, stockData[values[-1].stocks[0].ticker]); // IPO????
+  let dataIndx = getIndexOfDate(values[values.length-1].date, stockData[values[values.length-1].stocks[0].ticker]); // IPO????
   dataIndx++;
 
+  //console.log(values[values.length-1].stocks[0].ticker);
+  let testTick = values[values.length-1].stocks[0].ticker;
 
-  while(dataIndx < stockData[values[-1].stocks[0].ticker].length) {
+
+  while(dataIndx < stockData[testTick].length) {
     let day = {};
 
-    day.date = stockData[values[-1].stocks[0].ticker].date;
+    day.date = stockData[testTick][dataIndx].date;
+    day.stocks = oldStocks;
     day.cash = cash;
     day.value = 0;
-    day.stocks = [];
 
-    for(i in values[-1].stocks) {
-      day.value += stockData[values[-1].stocks[i].ticker][dataIndx] * values[-1].stocks[i].shares;
+    for(i in day.stocks) {
+      day.value += stockData[day.stocks[i].ticker][dataIndx].close * day.stocks[i].shares;
     }
 
     values.push(day);
@@ -733,7 +745,7 @@ async function keepFresh(userId) {
 
   // Commit to DB
   portfolio.attributes.value = {values};
-  portfolio.save();
+  await portfolio.save();
 
   return true;
 }

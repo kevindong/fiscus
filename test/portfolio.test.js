@@ -5,59 +5,64 @@ let Portfolio = require('../models/Portfolio');
 
 describe('Portfolio Tests', function () {
   const userDetails = {
-    email: 'portfolio@example.com',
-    password: 'reeeeeeeeeee'
+    email: 'test@test.com',
+    password: 'test123'
   };
 
   let agent = request.agent(server); // Create agent to login to
-  let userId;
+  let user;
+  let portfolio;
 
-  // create login user to test with
-  before(function (done) {
-    new User()
-      .where({ email: userDetails.email })
-      .destroy()
-      .then(function () {
-        new User({ name: 'Testerino', email: userDetails.email, password: userDetails.password, isAdmin: false, isConfirmed: true, isBanned: false })
-          .save()
-          .then(function (u) {
-            userId = u.get('id'); // Get User Id
-
-            agent.post('/login')
-              .send(userDetails)
-              .expect(302)
-              .expect('Location', '/')
-              .end(function (err, response) {
-                if (err) {
-                  done(err);
-                } else {
-                  done()
-                }
-              });
-          });
+  // create portfolio for user
+  before(async function(done) {
+    agent.post('/login')
+      .send(userDetails)
+      .expect(302)
+      .expect('Location', '/')
+      .end(function (err, response) {
+        if (err) {
+          done(err);
+        } else {
+          done();
+        }
       });
+
+    user = await new User({email: userDetails.email}).fetch();
+    portfolio = await new Portfolio({userId: user.attributes.id}).save();
   });
 
   // cleanup after tests
   after(function (done) {
-    new User()
-      .where({ email: userDetails.email })
+    new Portfolio()
+      .where({ userId: user.attributes.id })
       .destroy();
     done();
   });
 
-  describe('Buy Tests', function() {
-    before(function(done) {
-      return new Portfolio({userId: userId})
-        .save();
+  describe('keepFresh() Tests', function() {
+
+    let values = [
+      {
+        date:"2018-03-23",
+        stocks:[{ticker:"GE",shares:1}],
+        cash:0,
+        value:13.07
+      },
+      {
+        date:"2018-03-26",
+        stocks:[{ticker:"GE",shares:1}],
+        cash:0,
+        value:12.89
+      }
+      ];
+
+    before(async function() {
+      portfolio.attributes.value = values;
+      await portfolio.save();
     });
 
-    after(function(done) {
-      return new Portfolio({userId: userId})
-        .destroy();
-    });
 
-    it('Test Buy with No Portfolio', function(done) {
+    it('Test Buy with Securities Owned', function(done) {
 
     })
   });
