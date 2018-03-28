@@ -259,7 +259,8 @@ exports.editTransactionPost = async function (req, res) {
       type: req.body.action,
       dateTransacted: req.body.date,
       numShares: req.body.shares,
-      value: req.body.value
+      value: req.body.value,
+      deductFromCash: req.body.deductFromCash
     });
     if (req.body.transactionId) {
       transaction['id'] = req.body.transactionId;

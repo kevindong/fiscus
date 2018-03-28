@@ -10,6 +10,7 @@ block content
           th(scope="col") Action
           th(scope="col") Ticker
           th(scope="col") Date
+          th(scope="col") Used Cash?
           th.text-right(scope="col") Value
           th.text-right(scope="col") Shares
           th(scope="col") Edit
@@ -21,6 +22,7 @@ block content
             td #{transaction.type}
             td #{transaction.ticker}
             td #{transaction.dateTransacted.toISOString().substring(0, 10)}
+            td #{transaction.deductFromCash ? 'Yes' : 'No'}
             td.text-right #{transaction.value}
             td.text-right #{transaction.numShares}
             td
