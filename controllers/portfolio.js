@@ -316,13 +316,22 @@ exports.deleteTransaction = async function (req, res) {
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
 
-// Begin Portfolio Adjustment Code
 
-/*
-  {date: "----/--/--", stocks: [{ticker: "-----", shares: --}, {ticker: "-----", shares: --}], value: "----.--"}
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Begin Portfolio Adjustment Code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+
+/**
+ * Update portfolio with given transaction for user
+ *
+ * @param transId
+ * @param userId
+ * @returns {Promise.<void>}
  */
-
-
 async function updatePortfolioValue(transId, userId) {
 
   let fresh = await keepFresh(userId);
@@ -555,7 +564,13 @@ async function updatePortfolioValue(transId, userId) {
 }
 
 
-
+/**
+ * Get iex data for ticker on timeframe
+ *
+ * @param ticker
+ * @param timeframe
+ * @returns {Promise.<*>}
+ */
 async function iexChartGet(ticker, timeframe) {
   return rp({
     uri: `${iextradingRoot}/stock/${ticker}/chart/${timeframe}?filter=date,close`,
@@ -582,6 +597,14 @@ function formatDate(date) {
   return (yyyy + '-' + mm + '-' + dd);
 }
 
+
+/**
+ * Get index of date in the array
+ *
+ * @param date
+ * @param array
+ * @returns {*}
+ */
 const getIndexOfDate = function(date, array) {
 
   for(i in array) {
@@ -592,7 +615,13 @@ const getIndexOfDate = function(date, array) {
   return -1;
 };
 
-
+/**
+ * Get index of data equal to or after the specified date
+ *
+ * @param date
+ * @param array
+ * @returns {*}
+ */
 function getClosestDay(date, array) {
 
   for(i in array) {
@@ -606,15 +635,6 @@ function getClosestDay(date, array) {
   return -1
 }
 
-
-function getIndexOfStock(ticker, values) {
-  for(i in values) {
-    if(values[i].ticker === ticker) {
-      return i;
-    }
-  }
-  return -1;
-}
 
 /**
  * Boolean check of whether of not the first date is after the second
@@ -643,35 +663,50 @@ function parseDateString(date) {
 }
 
 
-
-
-
-
+/**
+ * Updates data to latest available data
+ *
+ * @param userId
+ * @returns {Promise.<boolean>}
+ */
 async function keepFresh(userId) {
   // Wait for promises to be filled
   let portfolio = await new Portfolio({userId: userId}).fetch();
 
+  // Check that the user has a portfolio
   if(!portfolio) {
     return false;
   }
 
+  // Check if the user has added values to the portfolio
   if(!portfolio.attributes.value) {
     return true;
   }
 
   let values = portfolio.attributes.value.values;
 
-
+  // Check to see if there are any open positions on the last day recorded
   if(!values[values.length-1].stocks.length) {
-    let cash = values[values.length-1].cash;
+    let cash = values[values.length-1].cash; // Cash will not change with updating to latest
 
-    let data = await iexChartGet('GE', '1y');
+    let data = await iexChartGet('GE', '1y'); // Get data to find when latest info is
+
+    // Check that we dont have out of date data in db, currently only support 1 year of data.
+    let oldestDay = data[0].date;
+    let oldestIndex = getIndexOfDate(oldestDay);
+
+    // If there are dates we don't support, cut them
+    if(oldestIndex > 0) {
+      values.splice(0, oldestIndex);
+    }
 
     let day = {};
 
+    // Get index of day after last day we have data for
     let dataIndx = getIndexOfDate(values[values.length-1].date, data);
     dataIndx++;
 
+    // For each day up to latest, add empty data
     while(dataIndx < data.length) {
       day.date = data[dataIndx].date;
       day.stocks = [];
@@ -687,7 +722,10 @@ async function keepFresh(userId) {
 
   let stocks = [];
 
+  // For each position owned on the last day of data
   for(i in values[values.length-1].stocks) {
+
+    // Check if it is a short or not and format it for iex
     if(values[values.length-1].stocks[i].ticker.charAt(0) === '$') {
       stocks.push(values[values.length-1].stocks[i].ticker.substr(1));
     } else {
@@ -699,12 +737,14 @@ async function keepFresh(userId) {
   let stockData = {};
   let dataPromises = [];
 
+  // Create promises for each of the iex API calls
   for(i in stocks) {
     dataPromises.push(iexChartGet(stocks[i], '1y'));
   }
 
   let response;
 
+  // Wait for promises to resolve
   try {
     response = await Promise.all(dataPromises);
   } catch (err) {
@@ -712,33 +752,38 @@ async function keepFresh(userId) {
     return false;
   }
 
+  // Add response data to object for O(1) lookup
   for(i in response) {
     stockData[values[values.length-1].stocks[i].ticker] = response[i];
   }
 
+  // Cash will be the same as the last day no matter what (until dividends are implemented)
   let cash = values[values.length-1].cash;
   let oldStocks = values[values.length-1].stocks;
 
-
+  // Get the index of the day after the last day known
   let dataIndx = getIndexOfDate(values[values.length-1].date, stockData[values[values.length-1].stocks[0].ticker]); // IPO????
   dataIndx++;
 
-  //console.log(values[values.length-1].stocks[0].ticker);
+  // Get a ticker to do index testing on
   let testTick = values[values.length-1].stocks[0].ticker;
 
-
+  // While there is newer data
   while(dataIndx < stockData[testTick].length) {
     let day = {};
 
+    // Initialize data
     day.date = stockData[testTick][dataIndx].date;
     day.stocks = oldStocks;
     day.cash = cash;
     day.value = 0;
 
+    // For each stock, update the daily value
     for(i in day.stocks) {
       day.value += stockData[day.stocks[i].ticker][dataIndx].close * day.stocks[i].shares;
     }
 
+    // Add that data to the values array
     values.push(day);
     dataIndx++;
   }
