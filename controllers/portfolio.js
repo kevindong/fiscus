@@ -369,9 +369,9 @@ async function updatePortfolioValue(transId, userId) {
           day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)}];
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: numShares}];
           day.cash = transaction.attributes.value * numShares;
-          day.value = (day.stocks[0].shares * data[i].close);
+          day.value = (-1 * numShares * data[i].close);
           break;
       }
 
@@ -416,9 +416,9 @@ async function updatePortfolioValue(transId, userId) {
           day.value = data[i].close * numShares;
           break;
         case 'Short':
-          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)}];
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: numShares}];
           day.cash = transaction.attributes.value * numShares;
-          day.value = (day.stocks[0].shares * data[i].close);
+          day.value = (-1 * numShares * data[i].close);
           break;
       }
 
@@ -445,7 +445,6 @@ async function updatePortfolioValue(transId, userId) {
             if(values[j].stocks[k].ticker === ticker) {
 
               values[j].stocks[k].shares += numShares;
-              values[j].value = data[i].close * values[j].stocks[k].shares;
 
               found = true;
               break;
@@ -454,6 +453,9 @@ async function updatePortfolioValue(transId, userId) {
           if(!found) {
             values[j].stocks.push({ticker: transaction.attributes.ticker, shares: numShares});
           }
+
+          values[j].value += data[i].close * numShares;
+
           break;
         case 'Sell':
           found = false;
@@ -463,7 +465,7 @@ async function updatePortfolioValue(transId, userId) {
 
               values[j].stocks[k].shares -= numShares;
               values[j].cash += numShares * transaction.get('value');
-              values[j].value = data[i].close * values[j].stocks[k].shares;
+              values[j].value -= data[i].close * numShares;
 
               // Remove record if sold remaining shares
               if(values[j].stocks[k].shares === 0) {
@@ -479,32 +481,52 @@ async function updatePortfolioValue(transId, userId) {
             console.log('Couldn\'t find stock to sell');
             throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
           }
+
+
+
           break;
         case 'Short':
           found = false;
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ('$' + ticker)) {
 
-              console.log('I smell like beef');
-
-              values[j].stocks[k].shares -= numShares;
-              values[j].value = data[i].close * values[j].stocks[k].shares;
-              values[j].cash = transaction.attributes.value * numShares;
+              values[j].stocks[k].shares += numShares;
+              values[j].cash += transaction.attributes.value * numShares;
 
               found = true;
               break;
             }
           }
           if(!found) {
-            values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: (-1 * numShares)});
+            values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: numShares});
           }
+
+          values[j].value -= data[i].close * numShares;
+
           break;
 
         case 'Cover':
+          found = false;
+
           for(k in values[j].stocks) {
-            if(values[j].stocks[k].ticker === transaction.attributes.ticker) {
-              // TODO : Update cover
+            if(values[j].stocks[k].ticker === ('$' + ticker)) {
+
+              values[j].stocks[k].shares -= numShares;
+              values[j].value += data[i].close * numShares;
+
+              // Remove record if sold remaining shares
+              if(values[j].stocks[k].shares === 0) {
+                values[j].stocks.splice(k, 1);
+              }
+
+              found = true;
+              break;
             }
+          }
+
+          if(!found) {
+            console.log('Couldn\'t find stock to cover');
+            throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
           }
           break;
       }
@@ -523,6 +545,8 @@ async function updatePortfolioValue(transId, userId) {
   }
 
 }
+
+
 
 async function iexChartGet(ticker, timeframe) {
   return rp({
@@ -608,4 +632,107 @@ function parseDateString(date) {
   let parts = date.split('-');
 
   return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+
+
+
+
+
+async function keepFresh(userId) {
+  // Wait for promises to be filled
+  let portfolio = await new Portfolio({userId: userId}).fetch();
+
+  if(!portfolio) {
+    return false;
+  }
+
+  if(!portfolio.attributes.value) {
+    return true;
+  }
+
+  let values = portfolio.attributes.value.values;
+
+  if(!values[-1].stocks.length) {
+    let cash = values[-1].cash;
+
+    let data = await iexChartGet('GE', '1y');
+
+    let day = {};
+
+    let dataIndx = getIndexOfDate(values[-1].date, data);
+    dataIndx++;
+
+    while(dataIndx < data.length) {
+      day.date = data[dataIndx].date;
+      day.stocks = [];
+      day.value = 0;
+      day.cash = cash;
+
+      values.push(day);
+    }
+
+    return true;
+  }
+
+
+  let stocks = [];
+
+  for(i in values[-1].stocks) {
+    if(values[-1].stocks[i].ticker.charAt(0) === '$') {
+      stocks.push(values[-1].stocks[i].ticker.substr(1));
+    } else {
+      stocks.push(values[-1].stocks[i].ticker);
+    }
+
+  }
+
+  let stockData = {};
+  let dataPromises = [];
+
+  for(i in stocks) {
+    dataPromises.push(iexChartGet(stocks[i], '1y'));
+  }
+
+  let response;
+
+  try {
+    response = await Promise.all(dataPromises);
+  } catch (err) {
+    console.log('Failed to get stock data');
+    return false;
+  }
+
+  for(i in response) {
+    stockData[values[-1].stocks[i].ticker] = response[i];
+  }
+
+  let cash = values[-1].cash;
+
+
+  let dataIndx = getIndexOfDate(values[-1].date, stockData[values[-1].stocks[0].ticker]); // IPO????
+  dataIndx++;
+
+
+  while(dataIndx < stockData[values[-1].stocks[0].ticker].length) {
+    let day = {};
+
+    day.date = stockData[values[-1].stocks[0].ticker].date;
+    day.cash = cash;
+    day.value = 0;
+    day.stocks = [];
+
+    for(i in values[-1].stocks) {
+      day.value += stockData[values[-1].stocks[i].ticker][dataIndx] * values[-1].stocks[i].shares;
+    }
+
+    values.push(day);
+    dataIndx++;
+  }
+
+  // Commit to DB
+  portfolio.attributes.value = {values};
+  portfolio.save();
+
+  return true;
 }
