@@ -1,5 +1,5 @@
 
-
+const iextradingRoot = 'https://api.iextrading.com/1.0';
 const rp = require('request-promise');
 const redis = require('redis');
 const redisClient = redis.createClient({
