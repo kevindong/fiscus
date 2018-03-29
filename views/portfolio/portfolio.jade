@@ -1,7 +1,10 @@
 extends ../layout
 
 block content
-  p This is where the portfolio value graph will eventually go...
+  .card.mb-3
+    .card-body
+      canvas(id='normChart')
+
   .card.mb-3
     .card-body
       h5.card-title Holdings
@@ -121,3 +124,54 @@ block content
     .card-footer.text-right
       a.btn.btn-primary.mr-1(href=`/portfolio/${portfolioId}/transaction/edit`) Add Transaction
       a.btn.btn-primary.mr-1(href="/portfolio/"+portfolioId+"/transactions") Edit Transactions
+
+      script.
+        window.onload = function () {
+          var ctx = document.getElementById("normChart").getContext('2d');
+          var myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: ["Indices"],
+              datasets: [{
+                label: 'Portfolio Value',
+                fill: false,
+                lineTension: 0,
+                data: !{portfolioChart},
+                borderColor: [
+                  '#FF8A65'
+                ],
+                backgroundColor: [
+                  'rgba(255,138,101, 0.3)'
+                ],
+                borderWidth: 2,
+                pointRadius: 0
+              }, ]
+            },
+            options: {
+              spanGaps: true,
+              title: {
+                display: true,
+                text: 'Portfolio Value'
+              },
+              scales: {
+                xAxes: [{
+                  type: 'time',
+                  display: true,
+                  scaleLabel: {
+                    display: true,
+                    labelString: "Date"
+                  }
+                }],
+                yAxes: [{
+                  ticks: {
+                    beginAtZero: true
+                  },
+                  scaleLabel: {
+                    display: true,
+                    labelString: "Value ($)"
+                  }
+                }]
+              }
+            }
+          })
+        }

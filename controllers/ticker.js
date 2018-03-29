@@ -266,8 +266,6 @@ const getThrMonthData = function(data) {
 };
 
 
-
-
 const formatData = function(data) {
     for(i in data) {
         data[i].x = data[i].date;

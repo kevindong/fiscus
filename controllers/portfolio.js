@@ -49,11 +49,23 @@ exports.home = async function (req, res) {
     console.error(err);
     return res.render(`error`, {msg, title: 'Error'});
   }
+
+  // Get chart
+  let portfolioChart;
+  try {
+    portfolioChart = await portfolioChartGet('1m', req.user.attributes.id);
+  } catch (err) {
+    const msg = 'Error when grabbing portfolio chart';
+    console.log(msg);
+    console.log(err);
+    return res.render(`error`, {msg, title: 'Error'});
+  }
   return res.render('portfolio/portfolio.jade', {
     title: 'Portfolio',
     portfolioId: portfolio.attributes.id,
     transactions: transactions,
-    securityNames: securityNames
+    securityNames: securityNames,
+    portfolioChart: JSON.stringify(portfolioChart)
   });
 };
 
@@ -127,6 +139,8 @@ exports.editPortfolio = async function (req, res) {
     return res.render('error', {msg: `You don't have rights to see this portfolio.`});
   }
   // End access check block
+
+  console.log(await portfolioChartGet('1m', req.user.attributes.id));
 
   let transactions;
   let securityNames;
@@ -260,12 +274,16 @@ exports.editTransactionPost = async function (req, res) {
       dateTransacted: req.body.date,
       numShares: req.body.shares,
       value: req.body.value,
-      deductFromCash: req.body.deductFromCash
+      deductFromCash: (req.body.deductFromCash === 'true')
     });
+
     if (req.body.transactionId) {
-      transaction['id'] = req.body.transactionId;
+      await editTransaction(transaction, req.body.transactionId, req.user.attributes.id);
+      //transaction['id'] = req.body.transactionId;
+    } else {
+      await addTransaction(transaction, req.user.attributes.id);
     }
-    transaction = await transaction.save();
+    //transaction = await transaction.save();
   } catch (err) {
     const msg = `An error occurred while adding or editing a transaction.`;
     console.error(msg);
@@ -274,21 +292,21 @@ exports.editTransactionPost = async function (req, res) {
   }
 
   // TODO - Update Portfolio Values
-  try {
-    await updatePortfolioValue(transaction.id,req.user.attributes.id);
-  } catch(err) {
-    console.log(err);
-    return res.render('error', {msg: `An error occurred while updating your portfolio`, title: 'Error'});
-  }
+  // try {
+  //   await updatePortfolioValue(transaction,req.user.attributes.id);
+  // } catch(err) {
+  //   console.log(err);
+  //   return res.render('error', {msg: `An error occurred while updating your portfolio`, title: 'Error'});
+  // }
 
 
   req.flash('success', {msg: 'Your transaction has been added/modified.'});
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
 
-/* 
+/*
  * POST /portfolio/:portfolioId/transaction/delete/:transactionId
- */ 
+ */
 exports.deleteTransaction = async function (req, res) {
   // Begin access check block
   let hasAccess = false;
@@ -304,7 +322,7 @@ exports.deleteTransaction = async function (req, res) {
   // End access check block
 
   let transaction;
-  try { 
+  try {
     transaction = new Transaction({id: req.params.transactionId}).destroy()
   } catch (err) {
     const msg = `An error occurred while deleting the transaction.`;
@@ -322,6 +340,75 @@ exports.deleteTransaction = async function (req, res) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Begin Portfolio Adjustment Code ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
+async function addTransaction(transaction, userId) {
+  // Check if updatePortfolio works
+  try{
+    await updatePortfolioValue(transaction, userId);
+  } catch(err) {
+    console.log(err);
+  }
+
+
+  // Save transaction if it does
+  await transaction.save()
+}
+
+
+/**
+ * Edit an existing transaction
+ *
+ * @param transaction
+ * @param oldId
+ * @param userId
+ * @returns {Promise.<void>}
+ */
+async function editTransaction(transaction, oldId, userId) {
+  // Create canceling transaction
+  await deleteTransaction(oldId, userId);
+
+  transaction['id'] = oldId;
+
+  // Run add transaction
+  await addTransaction(transaction, userId);
+}
+
+async function deleteTransaction(transId, userId) {
+  let transaction = await new Transaction({id: transId}).fetch();
+
+  if(!transaction) {
+    throw 'Could not find transaction to delete';
+  }
+
+  let newType;
+
+  switch(transaction.attributes.type) {
+    case 'Buy':
+      newType = 'Sell';
+      break;
+    case 'Sell':
+      newType = 'Buy';
+      break;
+    case 'Short':
+      newType = 'Cover';
+      break;
+    case 'Cover':
+      newType = 'Short';
+      break;
+  }
+
+
+  let cancelTrans= new Transaction({
+    ticker: transaction.attributes.ticker,
+    type: newType,
+    dateTransacted: formatDate(transaction.attributes.dateTransacted),
+    numShares: transaction.attributes.numShares,
+    value: transaction.attributes.value,
+    deductFromCash: transaction.attributes.deductFromCash
+  });
+
+  await updatePortfolioValue(cancelTrans, userId);
+}
+
 
 
 
@@ -332,7 +419,7 @@ exports.deleteTransaction = async function (req, res) {
  * @param userId
  * @returns {Promise.<void>}
  */
-async function updatePortfolioValue(transId, userId) {
+async function updatePortfolioValue(transaction, userId) {
 
   let fresh = await keepFresh(userId);
 
@@ -341,13 +428,10 @@ async function updatePortfolioValue(transId, userId) {
   }
 
   // Wait for promises to be filled
-  let [transaction, portfolio] =  await Promise.all([new Transaction({id: transId}).fetch(), new Portfolio({userId: userId}).fetch()]);
+  let portfolio =  await new Portfolio({userId: userId}).fetch();
 
   // Get date from transaction
-  let date = new Date(transaction.attributes.dateTransacted);
-
-  // Get today in date form
-  let today = new Date();
+  let date = parseDateString(transaction.attributes.dateTransacted);
 
   // Get the stock data for the last year
   let data = await iexChartGet(transaction.attributes.ticker, '1y');
@@ -381,12 +465,29 @@ async function updatePortfolioValue(transId, userId) {
       switch(transaction.attributes.type) {
         case 'Buy':
           day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
-          day.cash = 0;
+
+          console.log(typeof transaction.attributes.deductFromCash);
+
+          if(transaction.attributes.deductFromCash) {
+            console.log('here');
+            day.cash = -transaction.attributes.value * numShares;
+          } else {
+            day.cash = 0;
+          }
+
           day.value = data[i].close * numShares;
+
+
           break;
         case 'Short':
           day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: -numShares}];
-          day.cash = transaction.attributes.value * numShares;
+
+          if(transaction.attributes.deductFromCash) {
+            day.cash = transaction.attributes.value * numShares;
+          } else {
+            day.cash = 0;
+          }
+
           day.value = (-numShares * data[i].close);
           break;
       }
@@ -428,7 +529,13 @@ async function updatePortfolioValue(transId, userId) {
       switch(transaction.attributes.type) {
         case 'Buy':
           day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
-          day.cash = 0;
+
+          if(transaction.attributes.deductFromCash) {
+            day.cash = -transaction.attributes.value * numShares;
+          } else {
+            day.cash = 0;
+          }
+
           day.value = data[i].close * numShares;
           break;
         case 'Short':
@@ -466,8 +573,13 @@ async function updatePortfolioValue(transId, userId) {
               break;
             }
           }
+
           if(!found) {
             values[j].stocks.push({ticker: transaction.attributes.ticker, shares: numShares});
+          }
+
+          if(transaction.attributes.deductFromCash) {
+            values[j].cash -= transaction.attributes.value * numShares;
           }
 
           values[j].value += data[i].close * numShares;
@@ -480,7 +592,11 @@ async function updatePortfolioValue(transId, userId) {
             if(values[j].stocks[k].ticker === ticker) {
 
               values[j].stocks[k].shares -= numShares;
-              values[j].cash += numShares * transaction.get('value');
+
+              if(transaction.attributes.deductFromCash) {
+                values[j].cash += transaction.attributes.value * numShares;
+              }
+
               values[j].value -= data[i].close * numShares;
 
               // Remove record if sold remaining shares
@@ -507,7 +623,10 @@ async function updatePortfolioValue(transId, userId) {
             if(values[j].stocks[k].ticker === ('$' + ticker)) {
 
               values[j].stocks[k].shares -= numShares;
-              values[j].cash += transaction.attributes.value * numShares;
+
+              if(transaction.attributes.deductFromCash) {
+                day.cash = values[j].cash += transaction.attributes.value * numShares;
+              }
 
               found = true;
               break;
@@ -515,7 +634,10 @@ async function updatePortfolioValue(transId, userId) {
           }
           if(!found) {
             values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: -numShares});
-            values[j].cash += transaction.attributes.value * numShares;
+
+            if(transaction.attributes.deductFromCash) {
+              values[j].cash += transaction.attributes.value * numShares;
+            }
           }
 
           values[j].value -= data[i].close * numShares;
@@ -534,6 +656,10 @@ async function updatePortfolioValue(transId, userId) {
               // Remove record if sold remaining shares
               if(values[j].stocks[k].shares === 0) {
                 values[j].stocks.splice(k, 1);
+              }
+
+              if(transaction.attributes.deductFromCash) {
+                values[j].cash -= transaction.attributes.value * numShares;
               }
 
               found = true;
@@ -556,7 +682,7 @@ async function updatePortfolioValue(transId, userId) {
 
     // Commit to DB
     portfolio.attributes.value = {values};
-    portfolio.save();
+    await portfolio.save();
 
 
   }
@@ -657,6 +783,10 @@ function isAfter(date1, date2) {
  * @returns {Date}
  */
 function parseDateString(date) {
+  if(date instanceof Date) {
+    return date;
+  }
+
   let parts = date.split('-');
 
   return new Date(parts[0], parts[1] - 1, parts[2]);
@@ -793,4 +923,47 @@ async function keepFresh(userId) {
   await portfolio.save();
 
   return true;
+}
+
+
+/**
+ * Returns the values of a portfolio over a specified time frame
+ *
+ * @param timeframe
+ * @param userId
+ * @returns {Promise.<Array>}
+ */
+async function portfolioChartGet(timeframe, userId) {
+  let today = new Date();
+  let startDate = new Date();
+
+  await keepFresh(userId);
+
+  let portfolio = await new Portfolio({userId: userId}).fetch();
+
+  let values = portfolio.attributes.value.values;
+  let chart = [];
+
+  switch(timeframe) {
+    case '1m':
+      startDate.setMonth(today.getMonth() - 1);
+      break;
+    case '3m':
+      startDate.setMonth(today.getMonth() - 3);
+      break;
+    case '1y':
+      startDate.setYear((today.getYear() - 1));
+      break;
+    default:
+      throw timeframe + ' is not a valid time frame for the graph';
+  }
+
+  let i = getClosestDay(startDate, values);
+
+  while(i < values.length) {
+    chart.push({x: values[i].date, y: (values[i].cash + values[i].value)});
+    i++;
+  }
+
+  return chart;
 }
