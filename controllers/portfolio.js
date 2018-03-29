@@ -2,6 +2,7 @@ var User = require('../models/User');
 var Portfolio = require('../models/Portfolio');
 var Transaction = require('../models/Transaction');
 var TickerController = require('../controllers/ticker.js');
+var CurrentSecurity = require('../models/CurrentSecurity');
 const rp = require('request-promise');
 const iextradingRoot = 'https://api.iextrading.com/1.0';
 
@@ -50,6 +51,21 @@ exports.home = async function (req, res) {
     return res.render(`error`, {msg, title: 'Error'});
   }
 
+
+
+  // Get current securities
+  let currentSecurities;
+  try {
+    currentSecurities = await getCurrentSecurities(portfolio.id);
+
+    console.log(currentSecurities);
+  } catch (err) {
+    const msg = 'Error when grabbing portfolio chart';
+    console.log(msg);
+    console.log(err);
+    return res.render(`error`, {msg, title: 'Error'});
+  }
+
   // Get chart
   let portfolioChart;
   try {
@@ -60,12 +76,14 @@ exports.home = async function (req, res) {
     console.log(err);
     return res.render(`error`, {msg, title: 'Error'});
   }
+
   return res.render('portfolio/portfolio.jade', {
     title: 'Portfolio',
     portfolioId: portfolio.attributes.id,
     transactions: transactions,
     securityNames: securityNames,
-    portfolioChart: JSON.stringify(portfolioChart)
+    portfolioChart: JSON.stringify(portfolioChart),
+    currentSecurities: currentSecurities
   });
 };
 
@@ -139,8 +157,6 @@ exports.editPortfolio = async function (req, res) {
     return res.render('error', {msg: `You don't have rights to see this portfolio.`});
   }
   // End access check block
-
-  console.log(await portfolioChartGet('1m', req.user.attributes.id));
 
   let transactions;
   let securityNames;
@@ -320,7 +336,7 @@ exports.deleteTransaction = async function (req, res) {
 
   let transaction;
   try {
-    transaction = new Transaction({id: req.params.transactionId}).destroy()
+    await deleteTransaction(req.params.transactionId, req.user.attributes.id);
   } catch (err) {
     const msg = `An error occurred while deleting the transaction.`;
     console.error(msg);
@@ -404,6 +420,8 @@ async function deleteTransaction(transId, userId) {
   });
 
   await updatePortfolioValue(cancelTrans, userId);
+
+  await transaction.destroy();
 }
 
 
@@ -455,6 +473,9 @@ async function updatePortfolioValue(transaction, userId) {
         values.push(day);
         dataInd++;
       }
+
+
+
       // Update model
       portfolio.attributes.value = {values};
 
@@ -513,7 +534,7 @@ async function updatePortfolioValue(transaction, userId) {
 
 
 
-      // TODO : Update current day with today's data
+      await addToCurrentSecurities(portfolio.attributes.id, transaction);
 
       // Commit to DB
       portfolio.attributes.value = {values};
@@ -596,6 +617,8 @@ async function updatePortfolioValue(transaction, userId) {
       values.push(day);
       i++;
     }
+
+    await addToCurrentSecurities(portfolio.attributes.id, transaction);
 
     // Update model
     portfolio.attributes.value = {values};
@@ -777,6 +800,8 @@ async function updatePortfolioValue(transaction, userId) {
       j++;
     }
 
+    await addToCurrentSecurities(portfolio.attributes.id, transaction);
+
     // Commit to DB
     portfolio.attributes.value = {values};
     await portfolio.save();
@@ -918,7 +943,7 @@ async function keepFresh(userId) {
 
     let data = await iexChartGet('GE', '1y'); // Get data to find when latest info is
 
-    // Check that we dont have out of date data in db, currently only support 1 year of data.
+    // Check that we don't have out of date data in db, currently only support 1 year of data.
     let oldestDay = data[0].date;
     let oldestIndex = getIndexOfDate(oldestDay);
 
@@ -992,7 +1017,7 @@ async function keepFresh(userId) {
   let dataIndx = getIndexOfDate(values[values.length-1].date, stockData[values[values.length-1].stocks[0].ticker]); // IPO????
   dataIndx++;
 
-  // Get a ticker to do index testing on
+  // Get a ticker to do indexing on
   let testTick = values[values.length-1].stocks[0].ticker;
 
   // While there is newer data
@@ -1015,6 +1040,16 @@ async function keepFresh(userId) {
     dataIndx++;
   }
 
+  // TODO - Update to today's data
+
+  // Check if either of last two days are 'stale'
+
+  // If either of them are and we have official data, update them
+
+  // For all stocks currently owned, get today's data
+
+
+
   // Commit to DB
   portfolio.attributes.value = {values};
   await portfolio.save();
@@ -1034,7 +1069,13 @@ async function portfolioChartGet(timeframe, userId) {
   let today = new Date();
   let startDate = new Date();
 
-  await keepFresh(userId);
+
+  try {
+    await keepFresh(userId);
+  } catch (err) {
+    console.log(err);
+  }
+
 
   let portfolio = await new Portfolio({userId: userId}).fetch();
 
@@ -1047,8 +1088,6 @@ async function portfolioChartGet(timeframe, userId) {
   }
 
   let values = portfolio.attributes.value.values;
-
-
 
   let chart = [];
 
@@ -1073,5 +1112,281 @@ async function portfolioChartGet(timeframe, userId) {
     i++;
   }
 
+  for(i in values[values.length - 1].stocks) {
+
+  }
+
   return chart;
+}
+
+//
+// async function getLatestPrices(portfolioId) {
+//
+//   // For each position owned on the last day of data
+//   for(i in values[values.length-1].stocks) {
+//
+//     // Check if it is a short or not and format it for iex
+//     if(values[values.length-1].stocks[i].ticker.charAt(0) === '$') {
+//       stocks.push(values[values.length-1].stocks[i].ticker.substr(1));
+//     } else {
+//       stocks.push(values[values.length-1].stocks[i].ticker);
+//     }
+//
+//   }
+//
+//   let stockData = {};
+//   let dataPromises = [];
+//
+//   // Create promises for each of the iex API calls
+//   for(i in stocks) {
+//     dataPromises.push(iexChartGet(stocks[i], '1y'));
+//   }
+//
+//   let response;
+//
+//   // Wait for promises to resolve
+//   try {
+//     response = await Promise.all(dataPromises);
+//   } catch (err) {
+//     console.log('Failed to get stock data');
+//     return false;
+//   }
+//
+//   // Add response data to object for O(1) lookup
+//   for(i in response) {
+//     stockData[values[values.length-1].stocks[i].ticker] = response[i];
+//   }
+// }
+
+
+/**
+ * Add transaction to current securities by portfolioId
+ *
+ * @param portfolioId
+ * @param transaction
+ * @returns {Promise.<*>}
+ */
+async function addToCurrentSecurities(portfolioId, transaction) {
+
+  let ticker;
+
+  // Check if cash
+  if(transaction.attributes.ticker === '$') {
+    let currentSecurity = await new CurrentSecurity({portfolioId: portfolioId, ticker: ticker}).fetch();
+
+    if(!currentSecurity) {
+      if(transaction.attributes.type === 'Withdraw Cash') {
+        throw 'Not enough cash';
+      }
+
+      let cash = new CurrentSecurity({
+        portfolioId: portfolioId,
+        ticker: '$',
+        numShares: 1,
+        costBasis: transaction.attributes.value
+        });
+
+      return cash.save()
+    } else {
+      if (transaction.attributes.type === 'Withdraw Cash') {
+        if (currentSecurity.attributes.costBasis - transaction.attributes.value < 0) {
+          throw 'Not enough cash';
+        } else {
+          currentSecurity.attributes.costBasis -= transaction.attributes.value;
+        }
+      } else {
+        currentSecurity.attributes.costBasis += transaction.attributes.value;
+      }
+
+      return currentSecurity.save();
+    }
+  }
+
+  // Check if Short of Cover
+  if((transaction.attributes.type === 'Short') || (transaction.attributes.type === 'Cover')) {
+    ticker = '$' + transaction.attributes.ticker;
+  } else {
+    ticker = transaction.attributes.ticker;
+  }
+
+  let currentSecurity = await new CurrentSecurity({portfolioId: portfolioId, ticker: ticker}).fetch();
+
+  if(!currentSecurity) {
+    if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
+      throw 'No valid current position';
+    }
+
+    let newPosition = new CurrentSecurity({
+      portfolioId: portfolioId,
+      ticker: ticker,
+      numShares: transaction.attributes.numShares,
+      costBasis: transaction.attributes.value,
+    });
+
+    return newPosition.save();
+  } else {
+    if((transaction.attributes.type === 'Sell')
+      || (transaction.attributes.type === 'Cover')) {
+
+      let sharesNow = currentSecurity.attributes.numShares - transaction.attributes.numShares;
+
+      if(sharesNow === 0) {
+        return currentSecurity.destroy();
+      }
+
+      currentSecurity.attributes.costBasis *= (sharesNow / currentSecurity.attributes.numShares);
+    } else {
+      currentSecurity.attributes.numShares += transaction.attributes.numShares;
+      currentSecurity.attributes.costBasis += (transaction.attributes.value + transaction.attributes.numShares);
+    }
+
+    return currentSecurity.save();
+  }
+}
+
+
+// TODO - HANDLE CASH
+async function getCurrentSecurities(portfolioId) {
+
+
+  let currentSecurities = await new CurrentSecurity({portfolioId: portfolioId}).fetchAll();
+
+  let securities = [];
+
+  if(!currentSecurities) {
+    return securities;
+  }
+
+  currentSecurities = currentSecurities.toJSON();
+
+  for(i in currentSecurities) {
+    if(currentSecurities[i].ticker === '$') {
+      let security = {
+        ticker: '$',
+        last: currentSecurities[i].costBasis,
+        change: null,
+        shares: null,
+        cost: null,
+        value : currentSecurities[i].costBasis,
+        gain : null,
+        pctGain : null,
+        dayGain : null
+      };
+
+      currentSecurities.splice(i, 1);
+
+      securities.push(security)
+    }
+  }
+
+  let stocks = [];
+
+  for(i in currentSecurities) {
+
+    if(currentSecurities[i].ticker === '$') {
+
+    }
+
+    if (currentSecurities[i].ticker.charAt(0) === '$') {
+      stocks.push(currentSecurities[i].ticker.substr(1));
+    } else {
+      stocks.push(currentSecurities[i].ticker);
+    }
+  }
+
+  let stockData = {};
+  let dataPromises = [];
+
+  // Create promises for each of the iex API calls
+  for(i in stocks) {
+    dataPromises.push(iexCloseGet(stocks[i]));
+  }
+
+  let response;
+
+  // Wait for promises to resolve
+  try {
+    response = await Promise.all(dataPromises);
+  } catch (err) {
+    console.log('Failed to get stock data');
+    return false;
+  }
+
+  // Add response data to object for O(1) lookup
+  for(i in response) {
+    stockData[currentSecurities[i].ticker] = {close: response[i].close.price, open: response[i].open.price};
+  }
+
+  for(i in currentSecurities) {
+    let security = {};
+
+    security.ticker = (currentSecurities[i].ticker.charAt(0) === '$') ? currentSecurities[i].ticker.substr(1) + ' Short' : currentSecurities[i].ticker;
+    security.last = stockData[currentSecurities[i].ticker].close;
+    security.change = Math.round( stockData[currentSecurities[i].ticker].close - stockData[currentSecurities[i].ticker].open * 100) / 100;
+    security.shares = currentSecurities[i].numShares;
+    security.cost = currentSecurities[i].costBasis;
+    security.value = security.shares * security.last;
+    security.gain = Math.round((security.cost - security.value) * 100)/100;
+    security.pctGain = Math.round((security.gain / security.cost) * 100) / 100;
+    security.dayGain = Math.round(security.change * security.shares * 100) / 100;
+
+
+    securities.push(security);
+  }
+
+
+
+  return securities;
+}
+
+
+async function iexCloseGet(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/ohlc?`,
+    json: true,
+  });
+}
+
+
+// TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+async function latestDate(portfolioId) {
+  let portfolio = await Portfolio({id: portfolioId}).fetchAll();
+
+  if(!portfolio) {
+    return [];
+  }
+
+  let stocks = [];
+
+  for(i in currentSecurities) {
+
+    if (currentSecurities[i].attributes.ticker.charAt(0) === '$') {
+      stocks.push(currentSecurities[i].attributes.ticker.substr(1));
+    } else {
+      stocks.push(currentSecurities[i].attributes.ticker);
+    }
+  }
+
+  let stockData = {};
+  let dataPromises = [];
+
+  // Create promises for each of the iex API calls
+  for(i in stocks) {
+    dataPromises.push(iexCloseGet(stocks[i]));
+  }
+
+  let response;
+
+  // Wait for promises to resolve
+  try {
+    response = await Promise.all(dataPromises);
+  } catch (err) {
+    console.log('Failed to get stock data');
+    return false;
+  }
+
+  // Add response data to object for O(1) lookup
+  for(i in response) {
+    stockData[currentSecurities[i].attributes.ticker] = response[i].close.price;
+  }
 }
