@@ -29,7 +29,8 @@ exports.index = (req, res) => {
     new User().orderBy('id').fetchAll().then(users => {
         res.render('admin', {
             title: 'Admin',
-            users: users.map(user => user.attributes)
+            users: users.map(user => user.attributes),
+            darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
         });
     });
 };

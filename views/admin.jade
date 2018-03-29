@@ -12,6 +12,7 @@ block content
                 th Email
                 th Confirmed
                 th Admin
+                th Dark Theme
                 th Ban
                 th Delete
         tbody
@@ -46,6 +47,7 @@ block content
                                             button.btn.btn-success(type='submit') Send
                     td.align-middle #{user.isConfirmed}
                     td.align-middle #{user.isAdmin}
+                    td.align-middle #{user.darkTheme}
                     td.align-middle
                             if user.isBanned
                                 form(action="/admin/unbanUser", method="post")

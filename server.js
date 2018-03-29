@@ -51,7 +51,7 @@ const customValidators = {
     return found;
   }
 };
-app.use(expressValidator({customValidators}));
+app.use(expressValidator({ customValidators }));
 app.use(methodOverride('_method'));
 app.use(session({
   secret: process.env.SESSION_SECRET,
@@ -85,6 +85,9 @@ app.post('/forgot', userController.forgotPost);
 app.get('/reset/:token', userController.resetGet);
 app.post('/reset/:token', userController.resetPost);
 app.get('/logout', userController.logout);
+
+// dark theme
+app.get('/invert', userController.invertTheme);
 
 // ticker routes
 app.get('/ticker/details/:ticker', tickerController.tickerDetailsGet);

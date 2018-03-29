@@ -4,7 +4,7 @@ const redis = require('redis');
 const redisClient = redis.createClient({
     url: process.env.REDIS_URL,
 });
-const {promisify} = require('util');
+const { promisify } = require('util');
 const redisGetAsync = promisify(redisClient.get).bind(redisClient);
 const redisSetAsync = promisify(redisClient.set).bind(redisClient);
 
@@ -12,12 +12,12 @@ const redisSetAsync = promisify(redisClient.set).bind(redisClient);
  * GET /ticker/details/[ticker]
  * Displays the details page for [ticker]
  */
-exports.tickerDetailsGet = async function(req, res) {
+exports.tickerDetailsGet = async function (req, res) {
     const ticker = req.params.ticker;
     try {
         const ohlc = await exports.iexOpenHighLowCloseGet(ticker);
         const news = await exports.iexNews(ticker);
-        const {name, exchange} = await exports.yahooNameExchangeGet(ticker);
+        const { name, exchange } = await exports.yahooNameExchangeGet(ticker);
         const financials = await exports.iexFinancialsGet(ticker);
         const keyStats = await exports.iexKeyStatsGet(ticker);
         const logo = await exports.iexLogoGet(ticker);
@@ -46,19 +46,19 @@ exports.tickerDetailsGet = async function(req, res) {
         const closePrice = ohlc.close.price;
         const previousClose = quote.previousClose;
         const change = lastPrice - previousClose;
-        const changeFormatted = `${(change >= 0) ? '+' : ''}${parseInt(change*100)/100}`;
+        const changeFormatted = `${(change >= 0) ? '+' : ''}${parseInt(change * 100) / 100}`;
         const percentChange = lastPrice / previousClose;
-        const percentChangeFormatted = `${(percentChange >= 1) ? '+'+(parseInt((percentChange-1)*10000)/100) : '-'+(parseInt((1-percentChange)*10000)/100)}%`;
+        const percentChangeFormatted = `${(percentChange >= 1) ? '+' + (parseInt((percentChange - 1) * 10000) / 100) : '-' + (parseInt((1 - percentChange) * 10000) / 100)}%`;
         const open = ohlc.open.price;
         const close = ohlc.close.price;
         const low = ohlc.low;
         const high = ohlc.high;
         const color = (change >= 0) ? '#4CAF50' : '#F44336';
-        const baseline = [{x: chartDay[0].x, y: previousClose}, {x: chartDay[chartDay.length-1].x, y: previousClose}];
+        const baseline = [{ x: chartDay[0].x, y: previousClose }, { x: chartDay[chartDay.length - 1].x, y: previousClose }];
         res.render('details', {
             title: ticker + ' - Details',
             ticker,
-            lastPrice, 
+            lastPrice,
             change,
             changeFormatted,
             percentChangeFormatted,
@@ -79,11 +79,12 @@ exports.tickerDetailsGet = async function(req, res) {
             chartYear: JSON.stringify(chartYear),
             chartColor: JSON.stringify(color),
             baseline: JSON.stringify(baseline),
-            annotations: JSON.stringify(dividends.concat(splits))
+            annotations: JSON.stringify(dividends.concat(splits)),
+            darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
         });
     } catch (e) {
         console.log(e);
-        req.flash('error', {msg: `${ticker} is either an invalid or unsupported ticker.`});
+        req.flash('error', { msg: `${ticker} is either an invalid or unsupported ticker.` });
         console.log(e);
         res.redirect('/');
     }
@@ -93,7 +94,7 @@ exports.tickerDetailsGet = async function(req, res) {
  * GET /ticker/lookup?text=[text]
  * Looks up [text] and returns the best matched tickers
  */
-exports.lookupTickerGet = async function(req, res) {
+exports.lookupTickerGet = async function (req, res) {
     if (!req.query.text)
         return res.send({ results: [] });
     const url = `http://d.yimg.com/aq/autoc?query=${req.query.text}&region=US&lang=en-US`;
@@ -102,7 +103,7 @@ exports.lookupTickerGet = async function(req, res) {
         .then((response) => {
             const data = JSON.parse(response);
             const tickers = data['ResultSet']['Result'].filter((obj) => knownTickers.includes(obj.symbol));
-            const select2format = { results: tickers.map((obj) => { return { id: obj.symbol, text: `${obj.symbol} - ${obj.name}` }; })};
+            const select2format = { results: tickers.map((obj) => { return { id: obj.symbol, text: `${obj.symbol} - ${obj.name}` }; }) };
             res.send(select2format);
         })
         .catch((err) => {
@@ -111,59 +112,59 @@ exports.lookupTickerGet = async function(req, res) {
         });
 };
 
-exports.yahooNameExchangeGet = async function(ticker) {
+exports.yahooNameExchangeGet = async function (ticker) {
     const uri = `http://d.yimg.com/aq/autoc?query=${ticker}&region=US&lang=en-US`;
     const getKnownTickers = getKnownTickersRedis();
-    return rp({uri, json:true,})
+    return rp({ uri, json: true, })
         .then(async (response) => {
             if (response['ResultSet']['Result'].length === 0)
-                return Promise.resolve({name: '', exchange: ''});
+                return Promise.resolve({ name: '', exchange: '' });
             const knownTickers = await getKnownTickers;
             const tickers = response['ResultSet']['Result'].filter((obj) => knownTickers.includes(obj.symbol));
-            return Promise.resolve({name: tickers[0].name, exchange: tickers[0].exchDisp});
+            return Promise.resolve({ name: tickers[0].name, exchange: tickers[0].exchDisp });
         });
 };
 
-exports.iexPriceGet = async function(ticker) {
+exports.iexPriceGet = async function (ticker) {
     return rp(`${iextradingRoot}/stock/${ticker}/price`);
 };
 
-exports.iexOpenHighLowCloseGet = async function(ticker) {
+exports.iexOpenHighLowCloseGet = async function (ticker) {
     return rp({
         uri: `${iextradingRoot}/stock/${ticker}/ohlc`,
         json: true,
     });
 };
 
-exports.iexNews = async function(ticker) {
+exports.iexNews = async function (ticker) {
     return rp({
         uri: `${iextradingRoot}/stock/${ticker}/news/last/6`,
         json: true,
     });
 };
 
-exports.iexFinancialsGet = async function(ticker) {
+exports.iexFinancialsGet = async function (ticker) {
     return rp({
         uri: `${iextradingRoot}/stock/${ticker}/financials`,
         json: true,
     });
 };
 
-exports.iexLogoGet = async function(ticker) {
+exports.iexLogoGet = async function (ticker) {
     return rp({
         uri: `${iextradingRoot}/stock/${ticker}/logo`,
         json: true,
     });
 };
 
-exports.iexKeyStatsGet = async function(ticker) {
+exports.iexKeyStatsGet = async function (ticker) {
     return rp({
         uri: `${iextradingRoot}/stock/${ticker}/stats`,
         json: true,
     });
 };
 
-exports.iexQuoteGet = async function(ticker) {
+exports.iexQuoteGet = async function (ticker) {
     return rp({
         uri: `${iextradingRoot}/stock/${ticker}/quote`,
         json: true,
@@ -175,100 +176,100 @@ exports.iexQuoteGet = async function(ticker) {
  * Returns '-' if money is null/undefined
  * This allows the API to have null entries for some values
  */
-const formatMoney = function(money) {
+const formatMoney = function (money) {
     if (!money)
         return '?';
     return money.toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');
 };
 
-exports.iexDayChartGet = async function(ticker) {
-  return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/chart/1d?filter=date,minute,average,volume`,
-    json: true,
-  });
+exports.iexDayChartGet = async function (ticker) {
+    return rp({
+        uri: `${iextradingRoot}/stock/${ticker}/chart/1d?filter=date,minute,average,volume`,
+        json: true,
+    });
 };
 
-exports.iexChartGet = async function(ticker, timeframe) {
-  return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/chart/${timeframe}?filter=date,close`,
-    json: true,
-  });
+exports.iexChartGet = async function (ticker, timeframe) {
+    return rp({
+        uri: `${iextradingRoot}/stock/${ticker}/chart/${timeframe}?filter=date,close`,
+        json: true,
+    });
 };
 
 
-const formatDayData = function(data) {
-  for(i in data) {
+const formatDayData = function (data) {
+    for (i in data) {
 
-    if((data[i].average === 0) && (data[i].volume === 0)) {
-      data.splice(i, 1);
+        if ((data[i].average === 0) && (data[i].volume === 0)) {
+            data.splice(i, 1);
+        } else {
+            data[i].x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
+            data[i].y = data[i].average;
+            delete data[i].date;
+            delete data[i].minute;
+            delete data[i].average;
+        }
+
+    }
+
+    return data;
+};
+
+const getIndexOfDate = function (date, array) {
+
+    for (i in array) {
+        if (array[i].x === date) {
+            return i;
+        }
+    }
+    return -1;
+};
+
+const getMonthData = function (data) {
+    let today = new Date();
+    let yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    let startDate = new Date();
+
+    startDate.setDate(yesterday.getDate());
+    startDate.setMonth(yesterday.getMonth() - 1);
+
+    let start = formatDate(startDate);
+
+    let ind = getIndexOfDate(start, data);
+
+    if (ind === -1) {
+        return data.slice(-20);
     } else {
-      data[i].x = data[i].date.substring(0,4) + '-' + data[i].date.substring(4,6) + '-' + data[i].date.substring(6,8) + ' ' +  data[i].minute;
-      data[i].y = data[i].average;
-      delete data[i].date;
-      delete data[i].minute;
-      delete data[i].average;
+        return data.slice(ind);
     }
-
-  }
-
-  return data;
 };
 
-const getIndexOfDate = function(date, array) {
+const getThrMonthData = function (data) {
+    let today = new Date();
+    let yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    let startDate = new Date();
 
-  for(i in array) {
-    if(array[i].x === date) {
-      return i;
+    startDate.setDate(yesterday.getDate());
+    startDate.setMonth(yesterday.getMonth() - 3);
+
+    let start = formatDate(startDate);
+
+    let ind = getIndexOfDate(start, data);
+
+    if (ind === -1) {
+        return data.slice(-60);
+    } else {
+        return data.slice(ind);
     }
-  }
-  return -1;
-};
-
-const getMonthData = function(data) {
-  let today = new Date();
-  let yesterday = new Date();
-  yesterday.setDate(today.getDate()-1);
-  let startDate = new Date();
-
-  startDate.setDate(yesterday.getDate());
-  startDate.setMonth(yesterday.getMonth()-1);
-
-  let start = formatDate(startDate);
-
-  let ind = getIndexOfDate(start, data);
-
-  if(ind === -1) {
-    return data.slice(-20);
-  } else {
-    return data.slice(ind);
-  }
-};
-
-const getThrMonthData = function(data) {
-  let today = new Date();
-  let yesterday = new Date();
-  yesterday.setDate(today.getDate()-1);
-  let startDate = new Date();
-
-  startDate.setDate(yesterday.getDate());
-  startDate.setMonth(yesterday.getMonth()-3);
-
-  let start = formatDate(startDate);
-
-  let ind = getIndexOfDate(start, data);
-
-  if(ind === -1) {
-    return data.slice(-60);
-  } else {
-    return data.slice(ind);
-  }
 };
 
 
 
 
-const formatData = function(data) {
-    for(i in data) {
+const formatData = function (data) {
+    for (i in data) {
         data[i].x = data[i].date;
         data[i].y = data[i].close;
 
@@ -279,14 +280,14 @@ const formatData = function(data) {
     return data;
 };
 
-const getDividends = async function(ticker) {
-  return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/dividends/1y?filter=paymentDate,amount`,
-    json: true,
-  });
+const getDividends = async function (ticker) {
+    return rp({
+        uri: `${iextradingRoot}/stock/${ticker}/dividends/1y?filter=paymentDate,amount`,
+        json: true,
+    });
 };
 
-const formatDividends = function(data) {
+const formatDividends = function (data) {
 
     const divTemplate = {
         type: 'line',
@@ -295,15 +296,15 @@ const formatDividends = function(data) {
         value: "2017-05-14",
         borderColor: "#4CAF50",
         label: {
-        content: "TODAY",
-          enabled: true,
-          position: "top"
+            content: "TODAY",
+            enabled: true,
+            position: "top"
         }
     };
 
     let dividends = [];
 
-    for(i in data) {
+    for (i in data) {
         let temp = Object.assign({}, divTemplate);
         temp.value = data[i].paymentDate;
         temp.label.content = 'Dividend Paid: $' + data[i].amount;
@@ -314,36 +315,36 @@ const formatDividends = function(data) {
 
 };
 
-const getSplits = async function(ticker) {
-  return rp({
-    uri: `${iextradingRoot}/stock/${ticker}/splits/1y?filter=exDate,ratio`,
-    json: true,
-  });
+const getSplits = async function (ticker) {
+    return rp({
+        uri: `${iextradingRoot}/stock/${ticker}/splits/1y?filter=exDate,ratio`,
+        json: true,
+    });
 };
 
-const formatSplits = function(data) {
-  const splitTemplate = {
-    type: 'line',
-    mode: "vertical",
-    scaleID: "x-axis-0",
-    value: "2017-05-14",
-    borderColor: "#2196F3",
-    label: {
-      content: "Split",
-      enabled: true,
-      position: "top"
+const formatSplits = function (data) {
+    const splitTemplate = {
+        type: 'line',
+        mode: "vertical",
+        scaleID: "x-axis-0",
+        value: "2017-05-14",
+        borderColor: "#2196F3",
+        label: {
+            content: "Split",
+            enabled: true,
+            position: "top"
+        }
+    };
+
+    let splits = [];
+
+    for (i in data) {
+        let temps = Object.assign({}, splitTemplate);
+        temps.value = data[i].exDate;
+        splits.push(temps);
     }
-  };
 
-  let splits = [];
-
-  for(i in data) {
-    let temps = Object.assign({}, splitTemplate);
-    temps.value = data[i].exDate;
-    splits.push(temps);
-  }
-
-  return splits;
+    return splits;
 };
 
 /**
@@ -352,18 +353,18 @@ const formatSplits = function(data) {
  * @returns {string}
  */
 function formatDate(date) {
-  // Get yesterday's date
-  let dd = date.getDate();
-  let mm = date.getMonth() + 1; //January is 0!
-  let yyyy = date.getFullYear();
+    // Get yesterday's date
+    let dd = date.getDate();
+    let mm = date.getMonth() + 1; //January is 0!
+    let yyyy = date.getFullYear();
 
-  if (dd < 10) {
-    dd = '0' + dd;
-  }
-  if (mm < 10) {
-    mm = '0' + mm;
-  }
-  return (yyyy + '-' + mm + '-' + dd);
+    if (dd < 10) {
+        dd = '0' + dd;
+    }
+    if (mm < 10) {
+        mm = '0' + mm;
+    }
+    return (yyyy + '-' + mm + '-' + dd);
 }
 
 
@@ -375,7 +376,7 @@ const updateKnownTickersRedis = async () => {
     try {
         //Parse iex into an object, remove disabled tickers, and save only the ticker/symbol
         const filteredTickers = JSON.parse(await tickers).filter((obj) => obj.isEnabled).map((obj) => obj.symbol);
-        return redisSetAsync('knownTickers', JSON.stringify(filteredTickers), 'EX', 24*60*60); //Save for 1 day
+        return redisSetAsync('knownTickers', JSON.stringify(filteredTickers), 'EX', 24 * 60 * 60); //Save for 1 day
     } catch (e) {
         console.log(e);
     }

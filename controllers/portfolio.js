@@ -10,14 +10,14 @@ var TickerController = require('../controllers/ticker.js');
  * this will need to be changed.
  */
 exports.home = async function (req, res) {
-  let portfolio; 
+  let portfolio;
   try {
     portfolio = await new Portfolio().where('userId', req.user.attributes.id).fetch();
   } catch (err) {
     const msg = `Error in getting user's portfolio.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: 'Error'});
+    return res.render(`error`, { msg, title: 'Error' });
   }
   // Checking if the user has a portfolio. If not, create one.
   if (!portfolio) {
@@ -29,7 +29,7 @@ exports.home = async function (req, res) {
       const msg = `Error when creating new portfolio for user.`;
       console.error(msg);
       console.error(err);
-      return res.render(`error`, {msg, title: 'Error'});
+      return res.render(`error`, { msg, title: 'Error' });
     }
     req.flash('success', { msg: `We noticed that you didn't have a portfolio yet. No worries, we created one for you!` });
   }
@@ -38,20 +38,21 @@ exports.home = async function (req, res) {
   let transactions;
   let securityNames;
   try {
-    transactions = await new Transaction().where('portfolioId', portfolio.id).orderBy('dateTransacted', 'DESC').fetchPage({pageSize: 5, page: 1});
+    transactions = await new Transaction().where('portfolioId', portfolio.id).orderBy('dateTransacted', 'DESC').fetchPage({ pageSize: 5, page: 1 });
     transactions = transactions.models.map(x => x.attributes);
     securityNames = await getSecurityNames(transactions.map(x => x.ticker));
   } catch (err) {
     const msg = `Error when grabbing transactions for portfolio.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: 'Error'});
+    return res.render(`error`, { msg, title: 'Error' });
   }
   return res.render('portfolio/portfolio.jade', {
     title: 'Portfolio',
     portfolioId: portfolio.attributes.id,
     transactions: transactions,
-    securityNames: securityNames
+    securityNames: securityNames,
+    darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
   });
 };
 
@@ -63,7 +64,7 @@ async function hasPortfolioAccess(userId, portfolioId) {
   }
   let portfolio;
   try {
-    portfolio = await new Portfolio({userId: userId, id: portfolioId}).fetch();
+    portfolio = await new Portfolio({ userId: userId, id: portfolioId }).fetch();
   } catch (err) {
     console.error(err);
     return false;
@@ -93,7 +94,7 @@ async function hasTransactionAccess(userId, portfolioId, transactionId) {
   if (transactionId) { // editing existing transaction
     let transactionStatus;
     try {
-      transactionStatus = await new Transaction({id: transactionId, portfolioId: portfolioId}).fetch();
+      transactionStatus = await new Transaction({ id: transactionId, portfolioId: portfolioId }).fetch();
     } catch (err) {
       console.error(err);
       return false;
@@ -119,10 +120,10 @@ exports.editPortfolio = async function (req, res) {
     hasAccess = await hasPortfolioAccess(req.user.attributes.id, req.params.portfolioId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to see this page.`});
+    return res.render('error', { msg: `An error occured while evaluating your right to see this page.` });
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to see this portfolio.`});
+    return res.render('error', { msg: `You don't have rights to see this portfolio.` });
   }
   // End access check block
 
@@ -136,13 +137,14 @@ exports.editPortfolio = async function (req, res) {
     const msg = `Error when grabbing transactions for portfolio.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: 'Error'});
+    return res.render(`error`, { msg, title: 'Error' });
   }
   return res.render(`portfolio/edit_portfolio`, {
     title: `Edit Portfolio`,
     portfolioId: req.params.portfolioId,
     transactions: transactions,
-    securityNames: securityNames
+    securityNames: securityNames,
+    darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
   });
 };
 
@@ -173,7 +175,7 @@ async function getSecurityNames(tickers) {
  * The second endpoint is for modifying an existing transaction.
  * 
  * This function does not actually modify the data. 
- */ 
+ */
 exports.editTransactionGet = async function (req, res) {
   // Begin access check block
   let hasAccess = false;
@@ -181,35 +183,37 @@ exports.editTransactionGet = async function (req, res) {
     hasAccess = await hasTransactionAccess(req.user.attributes.id, req.params.portfolioId, req.params.transactionId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to see this page.`, title: 'Error'});
+    return res.render('error', { msg: `An error occured while evaluating your right to see this page.`, title: 'Error' });
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error'});
+    return res.render('error', { msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error' });
   }
   // End access check block
 
   if (req.params.transactionId) { // editing existing transaction
     let transaction;
     try {
-      transaction = await new Transaction({id: req.params.transactionId}).fetch();
+      transaction = await new Transaction({ id: req.params.transactionId }).fetch();
       yahooName = await TickerController.yahooNameExchangeGet(transaction.attributes.ticker);
     } catch (err) {
       const msg = `An error occured while getting the transaction to be edited.`;
       console.error(msg);
       console.error(err);
-      return res.render(`error`, {msg, title: `Error`});
+      return res.render(`error`, { msg, title: `Error` });
     }
     return res.render(`portfolio/edit_transaction`, {
       title: `Add Transaction`,
       portfolioId: req.params.portfolioId,
       transaction: transaction.attributes,
-      yahooName: `${transaction.attributes.ticker} - ${yahooName.name}`
+      yahooName: `${transaction.attributes.ticker} - ${yahooName.name}`,
+      darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
     });
   } else { // creating new transaction
     return res.render(`portfolio/edit_transaction`, {
       title: `Add Transaction`,
       portfolioId: req.params.portfolioId,
-      transaction: undefined
+      transaction: undefined,
+      darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
     });
   }
 };
@@ -226,10 +230,10 @@ exports.editTransactionPost = async function (req, res) {
     hasAccess = await hasTransactionAccess(req.user.attributes.id, req.params.portfolioId, req.params.transactionId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to see this page.`, title: 'Error'});
+    return res.render('error', { msg: `An error occured while evaluating your right to see this page.`, title: 'Error' });
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error'});
+    return res.render('error', { msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error' });
   }
   // End access check block
 
@@ -237,15 +241,16 @@ exports.editTransactionPost = async function (req, res) {
   req.assert('date', 'You must enter a valid date.').isDate();
   // I should validate the ticker here but as it turns out, it's really, really
   // hard to do async validations. So, client-side validation only it is. 
-  req.assert('value', `Value must be numeric, have at most 2 decimal places, and be less than $99,999,999.99.`).isDecimal({decimal_digits: 2}).isFloat({min: 0, max: 99999999.99});
-  req.assert('shares', `Shares must be numeric, be greater than 0, and have at most 4 decimal places, and be less than 99,999,999.9999.`).isDecimal({decimal_digits: 4}).isFloat({min: 0.0001, max: 99999999.9999});
+  req.assert('value', `Value must be numeric, have at most 2 decimal places, and be less than $99,999,999.99.`).isDecimal({ decimal_digits: 2 }).isFloat({ min: 0, max: 99999999.99 });
+  req.assert('shares', `Shares must be numeric, be greater than 0, and have at most 4 decimal places, and be less than 99,999,999.9999.`).isDecimal({ decimal_digits: 4 }).isFloat({ min: 0.0001, max: 99999999.9999 });
 
   let errors = req.validationErrors();
   if (errors) {
     req.flash('error', errors);
     return res.render('portfolio/edit_transaction', {
       portfolioId: req.body.portfolioId,
-      title: "Edit Transaction"
+      title: 'Edit Transaction',
+      darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
     });
   }
   let transaction;
@@ -267,15 +272,15 @@ exports.editTransactionPost = async function (req, res) {
     const msg = `An error occured while adding or editing a transaction.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: `Error`});
+    return res.render(`error`, { msg, title: `Error` });
   }
-  req.flash('success', {msg: 'Your transaction has been added/modified.'})
+  req.flash('success', { msg: 'Your transaction has been added/modified.' })
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
 
 /* 
  * POST /portfolio/:portfolioId/transaction/delete/:transactionId
- */ 
+ */
 exports.deleteTransaction = async function (req, res) {
   // Begin access check block
   let hasAccess = false;
@@ -283,22 +288,22 @@ exports.deleteTransaction = async function (req, res) {
     hasAccess = await hasTransactionAccess(req.user.attributes.id, req.params.portfolioId, req.params.transactionId);
   } catch (err) {
     console.error(err);
-    return res.render('error', {msg: `An error occured while evaluating your right to perform this action.`, title: 'Error'});
+    return res.render('error', { msg: `An error occured while evaluating your right to perform this action.`, title: 'Error' });
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to delete this transaction.`, title: 'Error'});
+    return res.render('error', { msg: `You don't have rights to delete this transaction.`, title: 'Error' });
   }
   // End access check block
 
   let transaction;
-  try { 
-    transaction = new Transaction({id: req.params.transactionId}).destroy()
+  try {
+    transaction = new Transaction({ id: req.params.transactionId }).destroy()
   } catch (err) {
     const msg = `An error occured while deleting the transaction.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: `Error`});
+    return res.render(`error`, { msg, title: `Error` });
   }
-  req.flash('success', {msg: 'Your transaction has been deleted.'});
+  req.flash('success', { msg: 'Your transaction has been deleted.' });
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };

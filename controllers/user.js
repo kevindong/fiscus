@@ -168,7 +168,8 @@ exports.signupPost = function (req, res, next) {
  */
 exports.accountGet = function (req, res) {
   res.render('account/profile', {
-    title: 'My Account'
+    title: 'My Account',
+    darkTheme: req.user['attributes']['darkTheme']
   });
 };
 
@@ -389,4 +390,24 @@ exports.resetPost = function (req, res, next) {
       });
     }
   ]);
+};
+
+/**
+ * GET /invert
+ */
+exports.invertTheme = function (req, res) {
+  const user = new User({ id: req.user.id });
+
+  user.save({ darkTheme: !req.user.attributes['darkTheme'] }, { patch: true })
+    .then(() => {
+      if ("password" in req.body) {
+        req.flash("success", { msg: "Your theme has been changed." });
+      }
+      res.redirect("/");
+    })
+    .catch(err => {
+      req.flash("error", {
+        msg: 'Something went wrong.'
+      });
+    });
 };

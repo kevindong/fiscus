@@ -6,10 +6,14 @@ html
     meta(name='viewport', content='width=device-width, initial-scale=1')
     title= title || 'Fiscus'
     link(rel='stylesheet', href='/css/vendor/bootstrap.css')
-    link(rel='stylesheet', href='/css/main.css')
+    if darkTheme
+      link(rel='stylesheet', href='/css/vendor/bootstrap.dark.css')
     link(rel='stylesheet', href='/css/vendor/fa.css')
     link(rel='stylesheet', href='/css/vendor/select2.min.css')
     link(rel='stylesheet', href='/css/vendor/select2-bootstrap4.min.css')
+    link(rel='stylesheet', href='/css/main.css')
+    if darkTheme
+      link(rel='stylesheet', href='/css/dark.css')
   body
     .container(style={'max-width': '1500px'})
       include includes/header
