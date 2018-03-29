@@ -297,15 +297,6 @@ exports.editTransactionPost = async function (req, res) {
     return res.render(`error`, {msg, title: `Error`});
   }
 
-  // TODO - Update Portfolio Values
-  // try {
-  //   await updatePortfolioValue(transaction,req.user.attributes.id);
-  // } catch(err) {
-  //   console.log(err);
-  //   return res.render('error', {msg: `An error occurred while updating your portfolio`, title: 'Error'});
-  // }
-
-
   req.flash('success', {msg: 'Your transaction has been added/modified.'});
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
@@ -785,9 +776,6 @@ async function updatePortfolioValue(transaction, userId) {
       i++;
       j++;
     }
-
-
-    // TODO : Update current day with today's data
 
     // Commit to DB
     portfolio.attributes.value = {values};
