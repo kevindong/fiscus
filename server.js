@@ -12,6 +12,7 @@ var expressValidator = require('express-validator');
 var dotenv = require('dotenv');
 var passport = require('passport');
 const rp = require('request-promise');
+const fileUpload = require('express-fileupload');
 
 // Load environment variables from .env file
 dotenv.load();
@@ -36,6 +37,7 @@ app.use(compression());
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(fileUpload());
 
 // For custom validators:
 // true  === pass validation; approve
@@ -109,6 +111,8 @@ app.get('/portfolio/:portfolioId/transaction/edit', userController.ensureAuthent
 app.get('/portfolio/:portfolioId/transaction/edit/:transactionId', userController.ensureAuthenticated, portfolioController.editTransactionGet);
 app.post('/portfolio/:portfolioId/transaction/edit', userController.ensureAuthenticated, portfolioController.editTransactionPost);
 app.post('/portfolio/:portfolioId/transaction/delete/:transactionId', userController.ensureAuthenticated, portfolioController.deleteTransaction);
+app.get('/portfolio/:portfolioId/transaction/export', userController.ensureAuthenticated, portfolioController.exportTransaction)
+app.post('/portfolio/:portfolioId/transaction/import', userController.ensureAuthenticated, portfolioController.importTransaction)
 
 // Production error handler
 if (app.get('env') === 'production') {
