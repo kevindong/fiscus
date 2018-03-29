@@ -254,7 +254,13 @@ exports.editTransactionPost = async function (req, res) {
   // I should validate the ticker here but as it turns out, it's really, really
   // hard to do async validations. So, client-side validation only it is. 
   req.assert('value', `Value must be numeric, have at most 2 decimal places, and be less than $99,999,999.99.`).isDecimal({decimal_digits: 2}).isFloat({min: 0, max: 99999999.99});
-  req.assert('shares', `Shares must be numeric, be greater than 0, and have at most 4 decimal places, and be less than 99,999,999.9999.`).isDecimal({decimal_digits: 4}).isFloat({min: 0.0001, max: 99999999.9999});
+  if (req.body.action.indexOf('Cash') == -1) {
+    req.assert('shares', `Shares must be numeric, be greater than 0, and have at most 4 decimal places, and be less than 99,999,999.9999.`).isDecimal({decimal_digits: 4}).isFloat({min: 0.0001, max: 99999999.9999});
+  } else {
+    req.body.deductFromCash = true;
+    req.body.ticker = '$';
+    req.body.shares = req.body.value;
+  }
 
   let errors = req.validationErrors();
   if (errors) {
