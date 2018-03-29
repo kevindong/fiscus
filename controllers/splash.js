@@ -11,10 +11,10 @@ const iextradingRoot = 'https://api.iextrading.com/1.0';
  *
  * Splash page of market indices
  */
-exports.index = function(req, res) {
+exports.index = function (req, res) {
 
   iexIntradayIndexGet()
-    .then(async function(data) {
+    .then(async function (data) {
       // Format
       let spFormat = formatData(data.spResponse);
       let nsdqFormat = formatData(data.nsdqResponse);
@@ -46,9 +46,11 @@ exports.index = function(req, res) {
         nsdqNormData: JSON.stringify(nsdqNorm),
         djiaNormData: JSON.stringify(djiaNorm),
 
-        dataLoad: true
+        dataLoad: true,
+
+        darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
       });
-    }).catch(function(err) {
+    }).catch(function (err) {
       console.log(err);
 
       res.render('splash', {
@@ -66,9 +68,11 @@ exports.index = function(req, res) {
         djiaChng: '0.00',
         djiaPctChng: '0.00%',
 
-        dataLoad: false
+        dataLoad: false,
+
+        darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
       })
-  })
+    })
 };
 
 
@@ -98,11 +102,11 @@ async function iexIntradayIndexGet() {
     intradayIndexGet('SPY'),
     intradayIndexGet('QQQ'),
     intradayIndexGet('DIA')
-  ]).catch(function(err) {
+  ]).catch(function (err) {
     console.log(err);
   });
 
-  return {spResponse, nsdqResponse, djiaResponse};
+  return { spResponse, nsdqResponse, djiaResponse };
 }
 
 
@@ -114,13 +118,13 @@ async function intradayIndexGet(ticker) {
 }
 
 
-const formatData = function(data) {
-  for(i in data) {
+const formatData = function (data) {
+  for (i in data) {
 
-    if((data[i].average === 0) && (data[i].volume === 0)) {
+    if ((data[i].average === 0) && (data[i].volume === 0)) {
       data.splice(i, 1);
     } else {
-      data[i].x = data[i].date.substring(0,4) + '-' + data[i].date.substring(4,6) + '-' + data[i].date.substring(6,8) + ' ' +  data[i].minute;
+      data[i].x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
       data[i].y = data[i].average;
       delete data[i].date;
       delete data[i].minute;
@@ -133,12 +137,12 @@ const formatData = function(data) {
 };
 
 
-const normalizeData = function(data, prevClose) {
+const normalizeData = function (data, prevClose) {
 
   let normData = [];
 
-  for(i in data) {
-    let obj ={};
+  for (i in data) {
+    let obj = {};
     obj.x = data[i].x;
     obj.y = (data[i].y - prevClose) * 100 / prevClose;
     normData.push(obj);
@@ -148,7 +152,7 @@ const normalizeData = function(data, prevClose) {
 };
 
 
-const getQuote = function(ticker) {
+const getQuote = function (ticker) {
   return rp({
     uri: `${iextradingRoot}/stock/${ticker}/quote/1d?filter=previousClose,change,changePercent,latestPrice`,
     json: true,
@@ -161,9 +165,9 @@ async function getIndexQuotes() {
     getQuote('SPY'),
     getQuote('QQQ'),
     getQuote('DIA')
-  ]).catch(function(err) {
+  ]).catch(function (err) {
     console.log(err);
   });
 
-  return {spQuote, nsdqQuote, djiaQuote};
+  return { spQuote, nsdqQuote, djiaQuote };
 }
