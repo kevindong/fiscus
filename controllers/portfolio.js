@@ -436,6 +436,109 @@ async function updatePortfolioValue(transaction, userId) {
   // Wait for promises to be filled
   let portfolio =  await new Portfolio({userId: userId}).fetch();
 
+  if(transaction.attributes.ticker === '$') {
+
+    let data = await iexChartGet('GE', '1y');
+    let date = parseDateString(transaction.attributes.dateTransacted);
+    let value = parseFloat(transaction.attributes.value);
+
+    // No portfolio yet
+    if(portfolio.attributes.value === null) {
+
+      if(transaction.attributes.type === 'Withdraw Cash') {
+        throw 'Not Enough Funds';
+      }
+
+
+      let dataInd = getClosestDay(date, data);
+
+      let values = [];
+      while(dataInd < data.length) {
+        let day = {};
+
+        day.date = data[dataInd].date;
+        day.stocks = [];
+        day.cash = value;
+        day.value = 0;
+
+        values.push(day);
+        dataInd++;
+      }
+      // Update model
+      portfolio.attributes.value = {values};
+
+      // Save to database
+      await portfolio.save();
+
+      return;
+
+    } else {
+      // Get values array from user portfolio
+      let values = portfolio.attributes.value.values;
+
+      // Get index of date closest to the date of the transaction
+      let i = getClosestDay(date, data);
+      let j = getClosestDay(date, values);
+      let valueStack = [];
+
+      // Add values to dates before beginning of portfolio
+      while(isAfter(values[j].date, data[i].date)) {
+        let day = {}; // Initialize empty object
+
+        // Add day to values string
+        day.date = data[i].date;
+        day.stocks = [];
+        day.cash = value;
+        day.value = 0;
+
+        valueStack.push(day);
+      }
+
+      // Un-pop stack onto beginning of values array
+      while(valueStack.length > 0) {
+        values.unshift(valueStack.pop());
+      }
+
+      // Get index of date of value added
+      j = getIndexOfDate(data[i].date, values);
+
+      // Update Values Already in Portfolio
+      while(i < data.length) {
+        switch (transaction.attributes.type) {
+          case 'Deposit Cash':
+            values[j].cash += value;
+            break;
+          case 'Withdraw Cash':
+            if((values[j].cash - value) < 0) {
+              throw 'Insufficient Funds'
+            } else {
+              values[j].cash -= value
+            }
+            break;
+        }
+        i++;
+        j++;
+      }
+
+
+
+      // TODO : Update current day with today's data
+
+      // Commit to DB
+      portfolio.attributes.value = {values};
+      await portfolio.save();
+
+      return;
+      }
+    }
+
+
+
+
+
+
+
+
   // Get date from transaction
   let date = parseDateString(transaction.attributes.dateTransacted);
 
@@ -947,7 +1050,18 @@ async function portfolioChartGet(timeframe, userId) {
 
   let portfolio = await new Portfolio({userId: userId}).fetch();
 
+  if(!portfolio) {
+    return null;
+  }
+
+  if(!portfolio.attributes.value) {
+    return null;
+  }
+
   let values = portfolio.attributes.value.values;
+
+
+
   let chart = [];
 
   switch(timeframe) {
