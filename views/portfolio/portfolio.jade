@@ -106,18 +106,18 @@ block content
               th(scope="col") Ticker
               th(scope="col") Date
               th(scope="col") Used Cash?
-              th.text-right(scope="col") Total Cost
+              th.text-right(scope="col") Value
               th.text-right(scope="col") Shares
           tbody
             each transaction in transactions
               tr
                 td #{securityNames[transaction.ticker]}
                 td #{transaction.type}
-                td #{transaction.ticker}
+                td #{transaction.ticker === "$" ? "" : transaction.ticker}
                 td #{transaction.dateTransacted.toISOString().substring(0,10)}
-                td #{transaction.deductFromCash ? 'Yes' : 'No'}
+                td #{transaction.ticker === "$" ? "" : (transaction.deductFromCash ? 'Yes' : 'No')}
                 td.text-right #{transaction.value}
-                td.text-right #{transaction.numShares}
+                td.text-right #{transaction.ticker === "$" ? "" : transaction.numShares}
     .card-footer.text-right
       a.btn.btn-primary.mr-1(href=`/portfolio/${portfolioId}/transaction/edit`) Add Transaction
       a.btn.btn-primary.mr-1(href="/portfolio/"+portfolioId+"/transactions") Edit Transactions

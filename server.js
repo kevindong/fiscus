@@ -43,7 +43,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const customValidators = {
   action_type: function (val) {
     let found = false;
-    ['Buy', 'Sell', 'Cover', 'Short'].forEach((x) => {
+    ['Buy', 'Sell', 'Cover', 'Short', 'Deposit Cash', 'Withdraw Cash'].forEach((x) => {
       if (x === val) {
         found = true;
       }

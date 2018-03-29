@@ -10,8 +10,8 @@ block content
           h5.card-title Add New Transaction
         .form-group.restrict-width
           label(for=`action`) Action
-          select.form-control#action(name=`action`, size=4)
-            each i in ['Buy', 'Sell', 'Short', 'Cover']
+          select.form-control#action(name=`action`, size=6)
+            each i in ['Buy', 'Sell', 'Short', 'Cover', 'Deposit Cash', 'Withdraw Cash']
               if transaction && transaction.type === i
                 option(selected="selected") #{i}
               else
@@ -52,3 +52,22 @@ block content
         input(type=`hidden`, name=`transactionId`, value='#{transaction ? transaction.id : ""}')
       .card-footer
         button.btn.btn-primary(type=`submit`) #{transaction ? "Edit Transaction" : "Add Transaction"}
+      script.
+        window.onload = function () {
+          if ($('#action').val() != undefined && $('#action').val().indexOf("Cash") != -1) {
+              $('#search-bar-transactions').parent().hide();
+              $('#shares').parent().hide();
+              $('#deductFromCashTrue').parent().hide();
+          }
+          $('#action').change(function () {
+            if ($('#action').val() === 'Deposit Cash' || $('#action').val() == 'Withdraw Cash') {
+              $('#search-bar-transactions').parent().hide();
+              $('#shares').parent().hide();
+              $('#deductFromCashTrue').parent().hide();
+            } else {
+              $('#search-bar-transactions').parent().show();
+              $('#shares').parent().show();
+              $('#deductFromCashTrue').parent().show();
+            }
+          });
+        }
