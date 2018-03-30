@@ -1349,7 +1349,6 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
 
 async function getCurrentSecurities(portfolioId) {
-
   let currentSecurities = await CurrentSecurity
     .where({portfolioId: portfolioId})
     .fetchAll();
@@ -1437,17 +1436,13 @@ async function getCurrentSecurities(portfolioId) {
       security.shares = currentSecurities[i].numShares;
       security.cost = currentSecurities[i].costBasis;
       security.value = security.shares * security.last;
-      security.gain = Math.round((security.cost - security.value) * 100)/100;
-      security.pctGain = Math.round((security.gain / security.cost) * 100) / 100;
+      security.gain = Math.round((security.value - security.cost) * 100)/100;
+      security.pctGain = Math.round((security.value / security.cost - 1) * 10000) / 100;
       security.dayGain = Math.round(security.change * security.shares * 100) / 100;
     }
 
-
     securities.push(security);
   }
-
-
-
   return securities;
 }
 
