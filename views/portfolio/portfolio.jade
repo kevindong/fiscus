@@ -1,9 +1,13 @@
 extends ../layout
 
 block content
-  .card.mb-3
-    .card-body
-      canvas(id='normChart')
+  if !{validChart}
+    .card.mb-3
+      .card-body
+        canvas(id='normChart')
+  else
+    br
+
 
   .card.mb-3
     .card-body
