@@ -1331,12 +1331,12 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
         return;
       } else {
-        currentSecurity.attributes.costBasis *= (sharesNow / currentSecurity.attributes.numShares);
-        currentSecurity.attributes.numShares = sharesNow;
+        currentSecurity.attributes.costBasis = ((currentSecurity.attributes.costBasis * currentSecurity.attributes.numShares) - (transaction.attributes.numShares * transaction.attributes.value)) / (sharesNow);
       }
     } else {
-      currentSecurity.attributes.numShares += transaction.attributes.numShares;
-      currentSecurity.attributes.costBasis += (transaction.attributes.value + transaction.attributes.numShares);
+      let sharesNow = currentSecurity.attributes.numShares + transaction.attributes.numShares;
+      currentSecurity.attributes.costBasis = ((currentSecurity.attributes.costBasis * currentSecurity.attributes.numShares) + (transaction.attributes.numShares * transaction.attributes.value)) / (sharesNow);
+      currentSecurity.attributes.numShares = sharesNow;
     }
 
     if(transaction.attributes.deductFromCash) {
@@ -1424,8 +1424,8 @@ async function getCurrentSecurities(portfolioId) {
       security.last = -stockData[currentSecurities[i].ticker].close;
       security.change = Math.round( (-stockData[currentSecurities[i].ticker].close + stockData[currentSecurities[i].ticker].open) * 100) / 100;
       security.shares = currentSecurities[i].numShares;
-      security.cost = currentSecurities[i].costBasis * security.shares;
-      security.value = security.shares * security.last;
+      security.cost = Math.round((currentSecurities[i].costBasis * security.shares) * 100) / 100;
+      security.value = Math.round(( security.shares * security.last) * 100) / 100;
       security.gain = Math.round((security.cost - security.value) * 100)/100;
       security.pctGain = Math.round((security.gain / security.cost) * 100) / 100;
       security.dayGain = Math.round(security.change * security.shares * 100) / 100;
@@ -1434,8 +1434,8 @@ async function getCurrentSecurities(portfolioId) {
       security.last = stockData[currentSecurities[i].ticker].close;
       security.change = Math.round( (stockData[currentSecurities[i].ticker].close - stockData[currentSecurities[i].ticker].open) * 100) / 100;
       security.shares = currentSecurities[i].numShares;
-      security.cost = currentSecurities[i].costBasis * security.shares;
-      security.value = security.shares * security.last;
+      security.cost = Math.round((currentSecurities[i].costBasis * security.shares) * 100) / 100;
+      security.value = Math.round( (security.shares * security.last) * 100 ) / 100;
       security.gain = Math.round((security.value - security.cost) * 100)/100;
       security.pctGain = Math.round((security.value / security.cost - 1) * 10000) / 100;
       security.dayGain = Math.round(security.change * security.shares * 100) / 100;
