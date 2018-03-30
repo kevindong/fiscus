@@ -16,7 +16,6 @@ block content
         table.table.mb-0
           thead
             tr
-              th(scope="col") Name
               th(scope="col") Ticker
               th(scope="col") Last
               th(scope="col") Change
@@ -26,80 +25,70 @@ block content
               th(scope="col") Gain
               th(scope="col") Gain %
               th(scope="col") Day's gain
-              th(scope="col") Overall Return
           tbody
-            tr
-              td Vanguard Total Stock Market
-              td VTI
-              td 145.34
-              td.green +0.06 (0.04%)
-              td 23.2120
-              td 2,899.10
-              td 3,373.63
-              td.green +474.53
-              td.green +16.37%
-              td.green +1.39
-              td.green +16.37%
-            tr
-              td Vanguard Total Intl
-              td VXUS
-              td 60.57
-              td.red -0.22 (-0.36%)
-              td 38.5710
-              td 2,008.27
-              td 2,373.63
-              td.green +327.97
-              td.green +16.33%
-              td.red -8.49
-              td.green +16.37%
-            tr
-              td Vanguard Total Bond
-              td BND
-              td 80.95
-              td.green +0.22 (0.27%)
-              td 5.0110
-              td 409.58
-              td 405.64
-              td.red -3.94
-              td.red -0.96%
-              td.green +1.10
-              td.red -0.96%
-            tr
-              td Vanguard Total Int Bond
-              td BNDX
-              td 54.20
-              td.red -0.01 (-0.02%)
-              td 4.0040
-              td 218.03
-              td 217.02
-              td.red -1.01
-              td.red -0.47%
-              td.red -0.04
-              td.red -0.47$
-            tr
-              td Cash
-              td $
-              td $15.60
-              td
-              td
-              td
-              td $15.60
-              td
-              td
-              td
-              td
+            - totalChange = 0
+            - totalCost = 0
+            - totalValue = 0
+            - totalGain = 0
+            - totalGainPct = 0
+            - totalDaysGain = 0
+            each security in currentSecurities
+              tr
+                td #{ security.ticker }
+                td #{ security.last }
+                - percent = Math.round(security.change / security.last * 100, 2)
+                if security.change > 0
+                  td.green +#{ security.change } (+#{ percent }%)
+                else
+                  td.red #{ security.change } (#{ percent }%)
+                td #{ security.shares }
+                td #{ security.cost }
+                td #{ security.value }
+                if security.gain > 0
+                  td.green +#{ security.gain }
+                else
+                  td.red #{ security.gain }
+                if security.pctGain > 0
+                  td.green +#{ security.pctGain }%
+                else
+                  td.red #{ security.pctGain }%
+                if security.dayGain > 0
+                  td.green +#{ security.dayGain }
+                else
+                  td.red #{ security.dayGain }
+              - totalChange += security.change * security.shares
+              - totalCost += security.cost * 1
+              - totalValue += security.value * 1
+              - totalGain += security.gain * 1
+              - totalDaysGain += security.dayGain * 1
+            - totalChange = Math.round(totalChange * 100) / 100
+            - totalCost = Math.round(totalCost * 100) / 100
+            - totalValue = Math.round(totalValue * 100) / 100
+            - totalGain = Math.round(totalGain * 100) / 100
+            - if (totalCost != 0) totalGainPct = Math.round((totalValue / totalCost - 1) * 10000) / 100
+            - totalDaysGain = Math.round(totalDaysGain * 100) / 100
             tr(style="border-top: 2px solid black")
-              td Portfolio:
+              td Total:
               td
+              if totalChange > 0
+                td.green #{ totalChange }
+              else
+                td.red #{ totalChange }
               td
-              td.red -6.03 (-0.09%)
-              td
-              td $5,534.99
-              td $6,348.13
-              td.green +$797.55
-              td.green +14.41%
-              td.red -$6.03
-              td.green +14.41%
+              td #{ totalCost }
+              td #{ totalValue }
+              if totalGain > 0
+                td.green #{ totalGain }
+              else
+                td.red #{ totalGain }
+              if totalGainPct > 0
+                td.green #{ totalGainPct }%
+              else
+                td.red #{ totalGainPct }%
+              if totalDaysGain > 0
+                td.green #{ totalDaysGain }
+              else
+                td.red #{ totalDaysGain }
 
   .card
     .card-body
@@ -129,23 +118,21 @@ block content
       a.btn.btn-primary.mr-1(href=`/portfolio/${portfolioId}/transaction/edit`) Add Transaction
       a.btn.btn-primary.mr-1(href="/portfolio/"+portfolioId+"/transactions") Edit Transactions
 
-
-    if news && news.length > 0
-      h3.mt-3 News about securities in your portfolio
-      hr
-      .row
-        each article in news
-          .col-md-4
-            .card(style={margin: '10px 0 10px 0'})
-              .card-body
-                h5.card-title
-                  a(style={color: 'inherit'},href=article.url) #{article.headline}
-                h6.card-subtitle.text-muted #{article.datetime.substring(0, 10)}
-                hr
-                p.card-text #{article.summary}
-                a.card-link(href=article.url) Link to article
-
-
+  hr
+  if news && news.length > 0
+    h3.mt-3 News about securities in your portfolio
+    hr
+    .row
+      each article in news
+        .col-md-4
+          .card(style={margin: '10px 0 10px 0'})
+            .card-body
+              h5.card-title
+                a(style={color: 'inherit'},href=article.url) #{article.headline}
+              h6.card-subtitle.text-muted #{article.datetime.substring(0, 10)}
+              hr
+              p.card-text #{article.summary}
+              a.card-link(href=article.url) Link to article
 
       script.
         window.onload = function () {
