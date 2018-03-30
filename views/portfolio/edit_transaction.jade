@@ -10,8 +10,8 @@ block content
           h5.card-title Add New Transaction
         .form-group.restrict-width
           label(for=`action`) Action
-          select.form-control#action(name=`action`, size=4)
-            each i in ['Buy', 'Sell', 'Short', 'Cover']
+          select.form-control#action(name=`action`, size=6)
+            each i in ['Buy', 'Sell', 'Short', 'Cover', 'Deposit Cash', 'Withdraw Cash']
               if transaction && transaction.type === i
                 option(selected="selected") #{i}
               else
@@ -33,7 +33,41 @@ block content
           label(for=`shares`) Shares
           input.form-control.restrict-width#shares(name=`shares`, type=`number`, min=`0.0001`, step=`0.0001`, max=`99999999.9999`, value='#{transaction ? transaction.numShares : ""}')
           small.form-text.text-muted Shares must be greater than 0, at most 99,999,999.9999, and have no more than 4 decimal places.
+        .form-group
+          label(for='deductFromCash') Deduct from cash balance?
+          br
+          if transaction
+            input.form-control-restrict-width#deductFromCashTrue(name='deductFromCash', type='radio', value='true', checked=(transaction.deductFromCash ? "checked" : undefined))
+            label.ml-1(for='deductFromCashTrue') Yes
+            br
+            input.form-control-restrict-width#deductFromCashFalse(name='deductFromCash', type='radio', value='false', checked=(transaction.deductFromCash ? undefined : "checked"))
+            label.ml-1(for='deductFromCashFalse') No
+          else
+            input.form-control-restrict-width#deductFromCashTrue(name='deductFromCash', type='radio', value='true')
+            label.ml-1(for='deductFromCashTrue') Yes
+            br
+            input.form-control-restrict-width#deductFromCashFalse(name='deductFromCash', type='radio', value='false', checked="checked")
+            label.ml-1(for='deductFromCashFalse') No
         input(type=`hidden`, name=`portfolioId`, value=`${portfolioId}`)
         input(type=`hidden`, name=`transactionId`, value='#{transaction ? transaction.id : ""}')
       .card-footer
         button.btn.btn-primary(type=`submit`) #{transaction ? "Edit Transaction" : "Add Transaction"}
+      script.
+        window.onload = function () {
+          if ($('#action').val() != undefined && $('#action').val().indexOf("Cash") != -1) {
+              $('#search-bar-transactions').parent().hide();
+              $('#shares').parent().hide();
+              $('#deductFromCashTrue').parent().hide();
+          }
+          $('#action').change(function () {
+            if ($('#action').val() === 'Deposit Cash' || $('#action').val() == 'Withdraw Cash') {
+              $('#search-bar-transactions').parent().hide();
+              $('#shares').parent().hide();
+              $('#deductFromCashTrue').parent().hide();
+            } else {
+              $('#search-bar-transactions').parent().show();
+              $('#shares').parent().show();
+              $('#deductFromCashTrue').parent().show();
+            }
+          });
+        }

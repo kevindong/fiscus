@@ -5,6 +5,7 @@ var fs = require('fs');
 
 var User = require('../models/User');
 var Portfolio = require('../models/Portfolio');
+var CurrentSecurity = require('../models/CurrentSecurity');
 var Transaction = require('../models/Transaction');
 var TickerController = require('../controllers/ticker.js');
 
@@ -52,11 +53,47 @@ exports.home = async function (req, res) {
     console.error(err);
     return res.render(`error`, { msg, title: 'Error' });
   }
+
+  // Getting stories about stocks in portfolio
+  let currentHoldings;
+  try {
+    currentHoldings = await new CurrentSecurity().where('portfolioId', portfolio.id).fetchAll();
+    currentHoldings = currentHoldings.models.map(x => x.attributes);
+  } catch (err) {
+    const msg = `Error when grabbing current holdings.`;
+    console.error(msg);
+    console.error(err);
+    return res.render(`error`, { msg, title: 'Error' });
+  }
+  let currentHoldingsTickers = currentHoldings.map(x => x.ticker).filter(y => y != "$");
+  let news = [];
+  if (currentHoldingsTickers.length > 0) {
+    try {
+      let tickers = [];
+      let headings = {};
+      for (let i = 0; i < 6; i++) {
+        let currStories = await TickerController.iexNews(currentHoldingsTickers[(Math.floor(Math.random() * currentHoldingsTickers.length))]);
+        while (currStories.length != 0) {
+          let candidate = currStories.shift();
+          if (headings[candidate.headline] === undefined) {
+            news.push(candidate);
+            headings[candidate.headline] = true;
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      // News stories is a non-critical feature. User will be shown page without stories. 
+      console.error('Failed to grab news stories about portfolio.');
+      console.error(err);
+    }
+  }
   return res.render('portfolio/portfolio.jade', {
     title: 'Portfolio',
     portfolioId: portfolio.attributes.id,
     transactions: transactions,
     securityNames: securityNames,
+    news: news,
     darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
   });
 };
@@ -246,8 +283,14 @@ exports.editTransactionPost = async function (req, res) {
   req.assert('date', 'You must enter a valid date.').isDate();
   // I should validate the ticker here but as it turns out, it's really, really
   // hard to do async validations. So, client-side validation only it is. 
-  req.assert('value', `Value must be numeric, have at most 2 decimal places, and be less than $99,999,999.99.`).isDecimal({ decimal_digits: 2 }).isFloat({ min: 0, max: 99999999.99 });
-  req.assert('shares', `Shares must be numeric, be greater than 0, and have at most 4 decimal places, and be less than 99,999,999.9999.`).isDecimal({ decimal_digits: 4 }).isFloat({ min: 0.0001, max: 99999999.9999 });
+  req.assert('value', `Value must be numeric, have at most 2 decimal places, and be less than $99,999,999.99.`).isDecimal({decimal_digits: 2}).isFloat({min: 0, max: 99999999.99});
+  if (req.body.action.indexOf('Cash') == -1) {
+    req.assert('shares', `Shares must be numeric, be greater than 0, and have at most 4 decimal places, and be less than 99,999,999.9999.`).isDecimal({decimal_digits: 4}).isFloat({min: 0.0001, max: 99999999.9999});
+  } else {
+    req.body.deductFromCash = true;
+    req.body.ticker = '$';
+    req.body.shares = req.body.value;
+  }
 
   let errors = req.validationErrors();
   if (errors) {
@@ -267,7 +310,8 @@ exports.editTransactionPost = async function (req, res) {
       type: req.body.action,
       dateTransacted: req.body.date,
       numShares: req.body.shares,
-      value: req.body.value
+      value: req.body.value,
+      deductFromCash: req.body.deductFromCash
     });
     if (req.body.transactionId) {
       transaction['id'] = req.body.transactionId;

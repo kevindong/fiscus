@@ -112,7 +112,10 @@ exports.lookupTickerGet = async function (req, res) {
         });
 };
 
-exports.yahooNameExchangeGet = async function (ticker) {
+exports.yahooNameExchangeGet = async function(ticker) {
+    if (ticker === "$") {
+        return {name: 'Cash'};
+    }
     const uri = `http://d.yimg.com/aq/autoc?query=${ticker}&region=US&lang=en-US`;
     const getKnownTickers = getKnownTickersRedis();
     return rp({ uri, json: true, })
