@@ -93,8 +93,7 @@ exports.home = async function (req, res) {
     portfolioId: portfolio.attributes.id,
     transactions: transactions,
     securityNames: securityNames,
-    news: news,
-    darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+    news: news
   });
 };
 
@@ -185,8 +184,7 @@ exports.editPortfolio = async function (req, res) {
     title: `Edit Portfolio`,
     portfolioId: req.params.portfolioId,
     transactions: transactions,
-    securityNames: securityNames,
-    darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+    securityNames: securityNames
   });
 };
 
@@ -247,15 +245,13 @@ exports.editTransactionGet = async function (req, res) {
       title: `Add Transaction`,
       portfolioId: req.params.portfolioId,
       transaction: transaction.attributes,
-      yahooName: `${transaction.attributes.ticker} - ${yahooName.name}`,
-      darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+      yahooName: `${transaction.attributes.ticker} - ${yahooName.name}`
     });
   } else { // creating new transaction
     return res.render(`portfolio/edit_transaction`, {
       title: `Add Transaction`,
       portfolioId: req.params.portfolioId,
-      transaction: undefined,
-      darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+      transaction: undefined
     });
   }
 };
@@ -297,8 +293,7 @@ exports.editTransactionPost = async function (req, res) {
     req.flash('error', errors);
     return res.render('portfolio/edit_transaction', {
       portfolioId: req.body.portfolioId,
-      title: 'Edit Transaction',
-      darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+      title: 'Edit Transaction'
     });
   }
   let transaction;

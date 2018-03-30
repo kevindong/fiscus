@@ -79,8 +79,7 @@ exports.tickerDetailsGet = async function (req, res) {
             chartYear: JSON.stringify(chartYear),
             chartColor: JSON.stringify(color),
             baseline: JSON.stringify(baseline),
-            annotations: JSON.stringify(dividends.concat(splits)),
-            darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+            annotations: JSON.stringify(dividends.concat(splits))
         });
     } catch (e) {
         console.log(e);

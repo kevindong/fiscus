@@ -56,9 +56,7 @@ exports.index = function (req, res) {
         nsdqNormData: JSON.stringify(nsdqNorm),
         djiaNormData: JSON.stringify(djiaNorm),
 
-        dataLoad: true,
-
-        darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+        dataLoad: true
       });
     }).catch(function (err) {
       console.log(err);
@@ -78,9 +76,7 @@ exports.index = function (req, res) {
         djiaChng: '0.00',
         djiaPctChng: '0.00%',
 
-        dataLoad: false,
-
-        darkTheme: (req.user) ? req.user['attributes']['darkTheme'] : false
+        dataLoad: false
       })
     })
 };
