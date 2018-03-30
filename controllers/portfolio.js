@@ -60,7 +60,7 @@ exports.home = async function (req, res) {
 
     console.log(currentSecurities);
   } catch (err) {
-    const msg = 'Error when grabbing portfolio chart';
+    const msg = 'Error when grabbing current securities';
     console.log(msg);
     console.log(err);
     return res.render(`error`, {msg, title: 'Error'});
@@ -310,7 +310,7 @@ exports.editTransactionPost = async function (req, res) {
     const msg = `An error occurred while adding or editing a transaction.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: `Error`});
+    return res.render(`error`, {msg: err, title: `Error`});
   }
 
   req.flash('success', {msg: 'Your transaction has been added/modified.'});
@@ -358,7 +358,7 @@ async function addTransaction(transaction, userId) {
   try{
     await updatePortfolioValue(transaction, userId);
   } catch(err) {
-    console.log(err);
+    throw err;
   }
 
 
@@ -376,15 +376,71 @@ async function addTransaction(transaction, userId) {
  * @returns {Promise.<void>}
  */
 async function editTransaction(transaction, oldId, userId) {
-  // Create canceling transaction
-  await deleteTransaction(oldId, userId);
 
-  transaction['id'] = oldId;
+  // Create canceling transaction
+  let oldTransaction = await new Transaction({id: oldId}).fetch();
+
+  if(!oldTransaction) {
+    throw 'Could not find transaction to delete';
+  }
+
+  let newType;
+
+  switch(oldTransaction.attributes.type) {
+    case 'Buy':
+      newType = 'Sell';
+      break;
+    case 'Sell':
+      newType = 'Buy';
+      break;
+    case 'Short':
+      newType = 'Cover';
+      break;
+    case 'Cover':
+      newType = 'Short';
+      break;
+  }
+
+
+  let cancelTrans= new Transaction({
+    ticker: oldTransaction.attributes.ticker,
+    type: newType,
+    dateTransacted: formatDate(oldTransaction.attributes.dateTransacted),
+    numShares: oldTransaction.attributes.numShares,
+    value: oldTransaction.attributes.value,
+    deductFromCash: oldTransaction.attributes.deductFromCash
+  });
+
+  try {
+    await updatePortfolioValue(cancelTrans, userId);
+  } catch(err) {
+    throw err;
+  }
+
+
+  oldTransaction.attributes.ticker = transaction.attributes.ticker;
+  oldTransaction.attributes.type = transaction.attributes.type;
+  oldTransaction.attributes.dateTransacted = transaction.attributes.dateTransacted;
+  oldTransaction.attributes.numShares = transaction.attributes.numShares;
+  oldTransaction.attributes.value = transaction.attributes.value;
+  oldTransaction.attributes.deductFromCash = transaction.attributes.deductFromCash;
 
   // Run add transaction
-  await addTransaction(transaction, userId);
+  try{
+    await addTransaction(oldTransaction, userId);
+  } catch (err) {
+    throw err;
+  }
+
 }
 
+/**
+ * Delete existing transaction and update portfolio values
+ *
+ * @param transId
+ * @param userId
+ * @returns {Promise.<void>}
+ */
 async function deleteTransaction(transId, userId) {
   let transaction = await new Transaction({id: transId}).fetch();
 
@@ -425,8 +481,6 @@ async function deleteTransaction(transId, userId) {
 }
 
 
-
-
 /**
  * Update portfolio with given transaction for user
  *
@@ -444,6 +498,13 @@ async function updatePortfolioValue(transaction, userId) {
 
   // Wait for promises to be filled
   let portfolio =  await new Portfolio({userId: userId}).fetch();
+
+  try {
+    await isValidTransaction(portfolio.attributes.id, transaction);
+  } catch (err) {
+    throw err;
+  }
+
 
   if(transaction.attributes.ticker === '$') {
 
@@ -474,7 +535,7 @@ async function updatePortfolioValue(transaction, userId) {
         dataInd++;
       }
 
-
+      await addToCurrentSecurities(portfolio.attributes.id, transaction);
 
       // Update model
       portfolio.attributes.value = {values};
@@ -587,10 +648,7 @@ async function updatePortfolioValue(transaction, userId) {
         case 'Buy':
           day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
 
-          console.log(typeof transaction.attributes.deductFromCash);
-
           if(transaction.attributes.deductFromCash) {
-            console.log('here');
             day.cash = -transaction.attributes.value * numShares;
           } else {
             day.cash = 0;
@@ -885,7 +943,7 @@ function getClosestDay(date, array) {
 
 
 /**
- * Boolean check of whether of not the first date is after the second
+ * Boolean check of whether or not the first date is after the second
  *
  * @param date1
  * @param date2
@@ -1119,45 +1177,6 @@ async function portfolioChartGet(timeframe, userId) {
   return chart;
 }
 
-//
-// async function getLatestPrices(portfolioId) {
-//
-//   // For each position owned on the last day of data
-//   for(i in values[values.length-1].stocks) {
-//
-//     // Check if it is a short or not and format it for iex
-//     if(values[values.length-1].stocks[i].ticker.charAt(0) === '$') {
-//       stocks.push(values[values.length-1].stocks[i].ticker.substr(1));
-//     } else {
-//       stocks.push(values[values.length-1].stocks[i].ticker);
-//     }
-//
-//   }
-//
-//   let stockData = {};
-//   let dataPromises = [];
-//
-//   // Create promises for each of the iex API calls
-//   for(i in stocks) {
-//     dataPromises.push(iexChartGet(stocks[i], '1y'));
-//   }
-//
-//   let response;
-//
-//   // Wait for promises to resolve
-//   try {
-//     response = await Promise.all(dataPromises);
-//   } catch (err) {
-//     console.log('Failed to get stock data');
-//     return false;
-//   }
-//
-//   // Add response data to object for O(1) lookup
-//   for(i in response) {
-//     stockData[values[values.length-1].stocks[i].ticker] = response[i];
-//   }
-// }
-
 
 /**
  * Add transaction to current securities by portfolioId
@@ -1170,11 +1189,17 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
   let ticker;
 
+  transaction.attributes.value = parseFloat(transaction.attributes.value);
+  transaction.attributes.numShares = parseFloat(transaction.attributes.numShares);
+
   // Check if cash
   if(transaction.attributes.ticker === '$') {
-    let currentSecurity = await new CurrentSecurity({portfolioId: portfolioId, ticker: ticker}).fetch();
+    let currentSecurity = await new CurrentSecurity({portfolioId: portfolioId, ticker: transaction.attributes.ticker}).fetch();
 
     if(!currentSecurity) {
+
+      console.log('here');
+
       if(transaction.attributes.type === 'Withdraw Cash') {
         throw 'Not enough cash';
       }
@@ -1188,11 +1213,19 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
       return cash.save()
     } else {
+
+      currentSecurity.attributes.costBasis = parseFloat(currentSecurity.attributes.costBasis);
+      currentSecurity.attributes.numShares = parseFloat(currentSecurity.attributes.numShares);
+
       if (transaction.attributes.type === 'Withdraw Cash') {
         if (currentSecurity.attributes.costBasis - transaction.attributes.value < 0) {
           throw 'Not enough cash';
         } else {
           currentSecurity.attributes.costBasis -= transaction.attributes.value;
+
+          if(currentSecurity.attributes.costBasis === 0) {
+            return currentSecurity.destroy();
+          }
         }
       } else {
         currentSecurity.attributes.costBasis += transaction.attributes.value;
@@ -1225,6 +1258,10 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
     return newPosition.save();
   } else {
+
+    currentSecurity.attributes.costBasis = parseFloat(currentSecurity.attributes.costBasis);
+    currentSecurity.attributes.numShares = parseFloat(currentSecurity.attributes.numShares);
+
     if((transaction.attributes.type === 'Sell')
       || (transaction.attributes.type === 'Cover')) {
 
@@ -1236,11 +1273,12 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
       currentSecurity.attributes.costBasis *= (sharesNow / currentSecurity.attributes.numShares);
     } else {
+      console.log('here');
       currentSecurity.attributes.numShares += transaction.attributes.numShares;
       currentSecurity.attributes.costBasis += (transaction.attributes.value + transaction.attributes.numShares);
     }
 
-    return currentSecurity.save();
+    await currentSecurity.save();
   }
 }
 
@@ -1248,8 +1286,9 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 // TODO - HANDLE CASH
 async function getCurrentSecurities(portfolioId) {
 
-
-  let currentSecurities = await new CurrentSecurity({portfolioId: portfolioId}).fetchAll();
+  let currentSecurities = await CurrentSecurity
+    .where({portfolioId: portfolioId})
+    .fetchAll();
 
   let securities = [];
 
@@ -1388,5 +1427,77 @@ async function latestDate(portfolioId) {
   // Add response data to object for O(1) lookup
   for(i in response) {
     stockData[currentSecurities[i].attributes.ticker] = response[i].close.price;
+  }
+}
+
+
+/**
+ * Will throw an error if the transaction is not valid
+ *
+ * @param portfolioId
+ * @param transaction
+ * @returns {Promise.<void>}
+ */
+async function isValidTransaction(portfolioId, transaction) {
+
+  transaction = transaction.toJSON();
+
+  let currentSecurities = await CurrentSecurity
+    .where({portfolioId: portfolioId})
+    .fetchAll();
+
+  let cash;
+
+  currentSecurities = currentSecurities.toJSON();
+
+  for(i in currentSecurities){
+    if(currentSecurities[i].ticker === '$') {
+      cash = currentSecurities[i].value;
+    }
+  }
+
+  if(!cash) {
+    cash = 0;
+  }
+
+  switch(transaction.type) {
+    case 'Buy':
+      if(transaction.deductFromCash) {
+        if((cash -  transaction.value * transaction.numShares) < 0) {
+          throw 'Not enough cash';
+        }
+      }
+      break;
+    case 'Sell':
+      for(i in currentSecurities) {
+        if(currentSecurities[i].ticker === transaction.ticker) {
+          return;
+        }
+      }
+      throw 'Must own a security to be able to sell it';
+      break;
+    case 'Cover':
+
+      if(transaction.deductFromCash) {
+        if((cash -  transaction.value * transaction.numShares) < 0) {
+          throw 'Not enough cash';
+        }
+      }
+
+      for(i in currentSecurities) {
+        if(currentSecurities[i].ticker === ('$' + transaction.ticker)) {
+          return;
+        }
+      }
+      throw 'Must own a short to be able to cover it';
+
+      break;
+    case 'Withdraw Cash':
+      if(transaction.deductFromCash) {
+        if((cash -  transaction.value) < 0) {
+          throw 'Not enough cash';
+        }
+      }
+      break;
   }
 }
