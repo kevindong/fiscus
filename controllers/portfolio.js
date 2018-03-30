@@ -1285,7 +1285,7 @@ async function addToCurrentSecurities(portfolioId, transaction) {
     }
   }
 
-  // Check if Short of Cover
+  // Check if Short or Cover
   if((transaction.attributes.type === 'Short') || (transaction.attributes.type === 'Cover')) {
     ticker = '$' + transaction.attributes.ticker;
   } else {
@@ -1323,13 +1323,18 @@ async function addToCurrentSecurities(portfolioId, transaction) {
       let sharesNow = currentSecurity.attributes.numShares - transaction.attributes.numShares;
 
       if(sharesNow === 0) {
-        return currentSecurity.destroy();
-      }
+        await currentSecurity.destroy();
 
-      currentSecurity.attributes.costBasis *= (sharesNow / currentSecurity.attributes.numShares);
-      currentSecurity.attributes.numShares = sharesNow;
+        if(transaction.attributes.deductFromCash) {
+          await updateCurrentCash(portfolioId, transaction.attributes.type, (transaction.attributes.numShares * transaction.attributes.value));
+        }
+
+        return;
+      } else {
+        currentSecurity.attributes.costBasis *= (sharesNow / currentSecurity.attributes.numShares);
+        currentSecurity.attributes.numShares = sharesNow;
+      }
     } else {
-      console.log('here');
       currentSecurity.attributes.numShares += transaction.attributes.numShares;
       currentSecurity.attributes.costBasis += (transaction.attributes.value + transaction.attributes.numShares);
     }
@@ -1466,41 +1471,42 @@ async function isValidTransaction(portfolioId, transaction) {
 
   transaction = transaction.toJSON();
 
-  let currentSecurities = await CurrentSecurity
-    .where({portfolioId: portfolioId})
-    .fetchAll();
+  let requestedSecurity = await CurrentSecurity
+    .where({portfolioId: portfolioId, ticker: transaction.ticker})
+    .fetch();
+
+  let cashSecurity = await CurrentSecurity
+    .where({portfolioId: portfolioId, ticker: '$'})
+    .fetch();
+
 
   let cash;
-
-  currentSecurities = currentSecurities.toJSON();
-
-  for (i in currentSecurities) {
-    if (currentSecurities[i].ticker === '$') {
-      cash = currentSecurities[i].costBasis;
-    }
-  }
-
-  if (!cash) {
+  if(cashSecurity) {
+    cash = cashSecurity.attributes.costBasis;
+  } else {
     cash = 0;
   }
 
   switch (transaction.type) {
     case 'Buy':
       if (transaction.deductFromCash) {
-        console.log(transaction);
-        console.log(cash);
         if ((cash - transaction.value * transaction.numShares) < 0) {
           throw 'Not enough cash';
         }
       }
       break;
     case 'Sell':
-      for (i in currentSecurities) {
-        if (currentSecurities[i].ticker === transaction.ticker) {
-          return;
+
+      if (!requestedSecurity) {
+        throw 'Must own a security to be able to sell it';
+      } else {
+        requestedSecurity = requestedSecurity.toJSON();
+
+        if(transaction.numShares > requestedSecurity.numShares) {
+          throw 'Must own enough shares to sell that many';
         }
       }
-      throw 'Must own a security to be able to sell it';
+
       break;
     case 'Cover':
 
@@ -1510,12 +1516,18 @@ async function isValidTransaction(portfolioId, transaction) {
         }
       }
 
-      for (i in currentSecurities) {
-        if (currentSecurities[i].ticker === ('$' + transaction.ticker)) {
-          return;
+      let short = await new CurrentSecurity({ticker: '$' + transaction.ticker}).fetch();
+
+      if(!short) {
+        throw 'Must own a short to be able to cover it';
+      } else {
+        short = short.toJSON();
+
+        if(transaction.numShares > short.numShares) {
+          throw 'Must own enough shorts to sell that many';
         }
       }
-      throw 'Must own a short to be able to cover it';
+
 
       break;
     case 'Withdraw Cash':
