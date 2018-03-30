@@ -30,4 +30,23 @@ block content
             td
               form(action="/portfolio/#{portfolioId}/transaction/delete/#{transaction.id}", method="POST")
                 button.btn.btn-danger(type="submit") Delete
-  a.btn.btn-primary(href="/portfolio/#{portfolioId}/transaction/edit") Add Transaction
+  a.btn.btn-primary.mr-1(href="/portfolio/#{portfolioId}/transaction/edit") Add Transaction
+  a.btn.btn-primary.mr-1(href="/portfolio/#{portfolioId}/transaction/export") Export CSV
+  button.btn.btn-primary(type='button', data-toggle='modal', data-target='#uploadModal')
+      | Import CSV
+  div.modal.fade(id='uploadModal', tabindex='-1', role='dialog', aria-labelledby='uploadModalLabel', aria-hidden='true')
+      .modal-dialog(role='document')
+          .modal-content
+              form(action='transaction/import', method='post', enctype='multipart/form-data')
+                  .modal-header
+                      h5.modal-title(id='uploadModalLabel') Import CSV
+                      button.close(type='button', data-dismiss='modal', aria-label='Close')
+                          span(aria-hidden='true') ×
+                  .modal-body
+                      .form-group
+                          label(for='subject') Choose a valid CSV file to upload. This will overwrite all existing transactions, so be careful.
+                          br
+                          input(type='file', name='file')
+                  .modal-footer
+                      button.btn.btn-secondary(type='button', data-dismiss='modal') Close
+                      button.btn.btn-success(type='submit') Send

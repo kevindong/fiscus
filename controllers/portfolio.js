@@ -1,5 +1,11 @@
+var parse = require('csv-parse');
+var path = require('path');
+var os = require('os');
+var fs = require('fs');
+
 var User = require('../models/User');
 var Portfolio = require('../models/Portfolio');
+var CurrentSecurity = require('../models/CurrentSecurity');
 var Transaction = require('../models/Transaction');
 var TickerController = require('../controllers/ticker.js');
 var CurrentSecurity = require('../models/CurrentSecurity');
@@ -13,14 +19,14 @@ const iextradingRoot = 'https://api.iextrading.com/1.0';
  * this will need to be changed.
  */
 exports.home = async function (req, res) {
-  let portfolio; 
+  let portfolio;
   try {
     portfolio = await new Portfolio().where('userId', req.user.attributes.id).fetch();
   } catch (err) {
     const msg = `Error in getting user's portfolio.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: 'Error'});
+    return res.render(`error`, { msg, title: 'Error' });
   }
   // Checking if the user has a portfolio. If not, create one.
   if (!portfolio) {
@@ -32,7 +38,7 @@ exports.home = async function (req, res) {
       const msg = `Error when creating new portfolio for user.`;
       console.error(msg);
       console.error(err);
-      return res.render(`error`, {msg, title: 'Error'});
+      return res.render(`error`, { msg, title: 'Error' });
     }
     req.flash('success', { msg: `We noticed that you didn't have a portfolio yet. No worries, we created one for you!` });
   }
@@ -41,14 +47,49 @@ exports.home = async function (req, res) {
   let transactions;
   let securityNames;
   try {
-    transactions = await new Transaction().where('portfolioId', portfolio.id).orderBy('dateTransacted', 'DESC').fetchPage({pageSize: 5, page: 1});
+    transactions = await new Transaction().where('portfolioId', portfolio.id).orderBy('dateTransacted', 'DESC').fetchPage({ pageSize: 5, page: 1 });
     transactions = transactions.models.map(x => x.attributes);
     securityNames = await getSecurityNames(transactions.map(x => x.ticker));
   } catch (err) {
     const msg = `Error when grabbing transactions for portfolio.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: 'Error'});
+    return res.render(`error`, { msg, title: 'Error' });
+  }
+
+  // Getting stories about stocks in portfolio
+  let currentHoldings;
+  try {
+    currentHoldings = await new CurrentSecurity().where('portfolioId', portfolio.id).fetchAll();
+    currentHoldings = currentHoldings.models.map(x => x.attributes);
+  } catch (err) {
+    const msg = `Error when grabbing current holdings.`;
+    console.error(msg);
+    console.error(err);
+    return res.render(`error`, { msg, title: 'Error' });
+  }
+  let currentHoldingsTickers = currentHoldings.map(x => x.ticker).filter(y => y != "$");
+  let news = [];
+  if (currentHoldingsTickers.length > 0) {
+    try {
+      let tickers = [];
+      let headings = {};
+      for (let i = 0; i < 6; i++) {
+        let currStories = await TickerController.iexNews(currentHoldingsTickers[(Math.floor(Math.random() * currentHoldingsTickers.length))]);
+        while (currStories.length != 0) {
+          let candidate = currStories.shift();
+          if (headings[candidate.headline] === undefined) {
+            news.push(candidate);
+            headings[candidate.headline] = true;
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      // News stories is a non-critical feature. User will be shown page without stories. 
+      console.error('Failed to grab news stories about portfolio.');
+      console.error(err);
+    }
   }
 
 
@@ -94,7 +135,8 @@ exports.home = async function (req, res) {
     validChart: (portfolioChart !== null),
     portfolioChart: JSON.stringify(portfolioChart),
     currentSecurities: currentSecurities,
-    chartColor: JSON.stringify(chartColor)
+    chartColor: JSON.stringify(chartColor),
+    news: news
   });
 };
 
@@ -106,7 +148,7 @@ async function hasPortfolioAccess(userId, portfolioId) {
   }
   let portfolio;
   try {
-    portfolio = await new Portfolio({userId: userId, id: portfolioId}).fetch();
+    portfolio = await new Portfolio({ userId: userId, id: portfolioId }).fetch();
   } catch (err) {
     console.error(err);
     return false;
@@ -136,7 +178,7 @@ async function hasTransactionAccess(userId, portfolioId, transactionId) {
   if (transactionId) { // editing existing transaction
     let transactionStatus;
     try {
-      transactionStatus = await new Transaction({id: transactionId, portfolioId: portfolioId}).fetch();
+      transactionStatus = await new Transaction({ id: transactionId, portfolioId: portfolioId }).fetch();
     } catch (err) {
       console.error(err);
       return false;
@@ -165,7 +207,7 @@ exports.editPortfolio = async function (req, res) {
     return res.render('error', {msg: `An error occurred while evaluating your right to see this page.`});
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to see this portfolio.`});
+    return res.render('error', { msg: `You don't have rights to see this portfolio.` });
   }
   // End access check block
 
@@ -179,7 +221,7 @@ exports.editPortfolio = async function (req, res) {
     const msg = `Error when grabbing transactions for portfolio.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: 'Error'});
+    return res.render(`error`, { msg, title: 'Error' });
   }
   return res.render(`portfolio/edit_portfolio`, {
     title: `Edit Portfolio`,
@@ -216,7 +258,7 @@ async function getSecurityNames(tickers) {
  * The second endpoint is for modifying an existing transaction.
  * 
  * This function does not actually modify the data. 
- */ 
+ */
 exports.editTransactionGet = async function (req, res) {
   // Begin access check block
   let hasAccess = false;
@@ -227,20 +269,20 @@ exports.editTransactionGet = async function (req, res) {
     return res.render('error', {msg: `An error occurred while evaluating your right to see this page.`, title: 'Error'});
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error'});
+    return res.render('error', { msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error' });
   }
   // End access check block
 
   if (req.params.transactionId) { // editing existing transaction
     let transaction;
     try {
-      transaction = await new Transaction({id: req.params.transactionId}).fetch();
+      transaction = await new Transaction({ id: req.params.transactionId }).fetch();
       yahooName = await TickerController.yahooNameExchangeGet(transaction.attributes.ticker);
     } catch (err) {
       const msg = `An error occured while getting the transaction to be edited.`;
       console.error(msg);
       console.error(err);
-      return res.render(`error`, {msg, title: `Error`});
+      return res.render(`error`, { msg, title: `Error` });
     }
     return res.render(`portfolio/edit_transaction`, {
       title: `Add Transaction`,
@@ -272,7 +314,7 @@ exports.editTransactionPost = async function (req, res) {
     return res.render('error', {msg: `An error occurred while evaluating your right to see this page.`, title: 'Error'});
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error'});
+    return res.render('error', { msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error' });
   }
   // End access check block
 
@@ -294,7 +336,7 @@ exports.editTransactionPost = async function (req, res) {
     req.flash('error', errors);
     return res.render('portfolio/edit_transaction', {
       portfolioId: req.body.portfolioId,
-      title: "Edit Transaction"
+      title: 'Edit Transaction'
     });
   }
   let transaction;
@@ -341,7 +383,7 @@ exports.deleteTransaction = async function (req, res) {
     return res.render('error', {msg: `An error occurred while evaluating your right to perform this action.`, title: 'Error'});
   }
   if (!hasAccess) {
-    return res.render('error', {msg: `You don't have rights to delete this transaction.`, title: 'Error'});
+    return res.render('error', { msg: `You don't have rights to delete this transaction.`, title: 'Error' });
   }
   // End access check block
 
@@ -352,12 +394,11 @@ exports.deleteTransaction = async function (req, res) {
     const msg = `An error occurred while deleting the transaction.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg, title: `Error`});
+    return res.render(`error`, { msg, title: `Error` });
   }
-  req.flash('success', {msg: 'Your transaction has been deleted.'});
+  req.flash('success', { msg: 'Your transaction has been deleted.' });
   return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
 };
-
 
 
 
@@ -1473,27 +1514,27 @@ async function isValidTransaction(portfolioId, transaction) {
 
   currentSecurities = currentSecurities.toJSON();
 
-  for(i in currentSecurities){
-    if(currentSecurities[i].ticker === '$') {
+  for (i in currentSecurities) {
+    if (currentSecurities[i].ticker === '$') {
       cash = currentSecurities[i].value;
     }
   }
 
-  if(!cash) {
+  if (!cash) {
     cash = 0;
   }
 
-  switch(transaction.type) {
+  switch (transaction.type) {
     case 'Buy':
-      if(transaction.deductFromCash) {
-        if((cash -  transaction.value * transaction.numShares) < 0) {
+      if (transaction.deductFromCash) {
+        if ((cash - transaction.value * transaction.numShares) < 0) {
           throw 'Not enough cash';
         }
       }
       break;
     case 'Sell':
-      for(i in currentSecurities) {
-        if(currentSecurities[i].ticker === transaction.ticker) {
+      for (i in currentSecurities) {
+        if (currentSecurities[i].ticker === transaction.ticker) {
           return;
         }
       }
@@ -1501,14 +1542,14 @@ async function isValidTransaction(portfolioId, transaction) {
       break;
     case 'Cover':
 
-      if(transaction.deductFromCash) {
-        if((cash -  transaction.value * transaction.numShares) < 0) {
+      if (transaction.deductFromCash) {
+        if ((cash - transaction.value * transaction.numShares) < 0) {
           throw 'Not enough cash';
         }
       }
 
-      for(i in currentSecurities) {
-        if(currentSecurities[i].ticker === ('$' + transaction.ticker)) {
+      for (i in currentSecurities) {
+        if (currentSecurities[i].ticker === ('$' + transaction.ticker)) {
           return;
         }
       }
@@ -1516,11 +1557,129 @@ async function isValidTransaction(portfolioId, transaction) {
 
       break;
     case 'Withdraw Cash':
-      if(transaction.deductFromCash) {
-        if((cash -  transaction.value) < 0) {
+      if (transaction.deductFromCash) {
+        if ((cash - transaction.value) < 0) {
           throw 'Not enough cash';
         }
       }
       break;
   }
 }
+
+  /*
+   * GET /portfolio/:portfolioId/transaction/export
+   */
+
+  exports.exportTransaction = async (req, res) => {
+    // Begin access check block
+    let hasAccess = false;
+    try {
+      hasAccess = await hasPortfolioAccess(req.user.attributes.id, req.params.portfolioId);
+    } catch (err) {
+      console.error(err);
+      return res.render('error', { msg: `An error occured while evaluating your right to see this page.`, title: 'Error' });
+    }
+    if (!hasAccess) {
+      return res.render('error', { msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error' });
+    }
+    // End access check block
+    let content = 'ticker,value,numShares,type,dateTransacted,created_at,updated_at,deductFromCash';
+    try {
+      let transactions = await new Transaction().where('portfolioId', req.params.portfolioId).orderBy('dateTransacted', 'DESC').fetchAll();
+      transactions = transactions.models.map(x => x.attributes);
+      transactions.forEach((t) => {
+        content += '\n' + t.ticker + ',' + t.value + ',' + t.numShares + ',' + t.type + ',' + t.dateTransacted + ',' + t.created_at + ',' + t.updated_at + ',' + t.deductFromCash;
+      });
+    } catch (err) {
+      const msg = `Error when grabbing transactions for portfolio.`;
+      console.error(msg);
+      console.error(err);
+      return res.render(`error`, { msg, title: 'Error' });
+    }
+    const datetime = new Date();
+    res.set({ 'Content-Disposition': 'attachment; filename="' + datetime + '.csv"' });
+    res.send(content);
+  }
+
+  /*
+   * POST /portfolio/:portfolioId/transaction/import
+   */
+
+  exports.importTransaction = async (req, res) => {
+    // Begin access check block
+    let hasAccess = false;
+    try {
+      hasAccess = await hasPortfolioAccess(req.user.attributes.id, req.params.portfolioId);
+    } catch (err) {
+      console.error(err);
+      return res.render('error', {
+        msg: `An error occured while evaluating your right to see this page.`,
+        title: 'Error'
+      });
+    }
+    if (!hasAccess) {
+      return res.render('error', {msg: `You don't have rights to see this portfolio or transaction.`, title: 'Error'});
+    }
+    // End access check block
+    let file = req.files.file;
+    let filePath = path.join(os.tmpdir(), file.md5);
+    file.mv(filePath);
+    fs.readFile(filePath, function (err, data) {
+      if (err) {
+        console.error(err);
+        req.flash('error', {msg: 'Errors occurred. Nothing was changed.'});
+        return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
+      }
+      // convert buffer to string
+      data = data.toString('utf8');
+      // parse CSV file
+      parse(data, {from: 2}, (err, output) => {
+        if (err) {
+          console.error(err);
+          req.flash('error', {msg: 'Errors occurred. Nothing was changed.'});
+          return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
+        } else {
+          // remove existing transactions from database
+          try {
+            new Transaction().where('portfolioId', req.params.portfolioId).destroy();
+          } catch (err) {
+            const msg = `An error occured while deleting the transaction.`;
+            console.error(msg);
+            console.error(err);
+            return res.render(`error`, {msg, title: `Error`});
+          }
+          // store new transactions in database
+          output.forEach(t => {
+            try {
+              let date = new Date(t[4]);
+              let dateString = '' + date.getUTCFullYear() + '-' + ("0" + (date.getUTCMonth() + 1)).slice(-2) + '-' + ("0" + date.getUTCDate()).slice(-2);
+              let transaction = new Transaction({
+                userId: req.user.attributes.id,
+                portfolioId: req.params.portfolioId,
+                ticker: t[0],
+                value: t[1],
+                numShares: t[2],
+                type: t[3],
+                dateTransacted: dateString
+              });
+              if (req.body.transactionId) {
+                transaction['id'] = req.body.transactionId;
+              }
+              transaction.save();
+            } catch (err) {
+              const msg = `An error occured while adding or editing a transaction.`;
+              console.error(msg);
+              console.error(err);
+              return res.render(`error`, {msg, title: `Error`});
+            }
+          });
+          req.flash('success', {msg: 'Your transactions have been imported.'});
+          return res.redirect(`/portfolio/${req.params.portfolioId}/transactions`);
+        }
+      });
+      // delete file
+      fs.unlink(filePath, function (err) {
+        if (err) console.error(err);
+      });
+    });
+  }

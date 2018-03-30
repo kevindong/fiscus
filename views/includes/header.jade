@@ -20,9 +20,10 @@ nav.navbar.navbar-expand-lg.navbar-light
           a.nav-link(href='/admin') Admin Console
       if user
         .nav-item.dropdown
-          a.nav-link.dropdown-toggle.navbar-right(href="#", id="accountDropdown", data-toggle="dropdown", aria-haspopups="true", aria-expanded="false") Account
+          a.nav-link.dropdown-toggle.navbar-right(href="#", id="accountDropdown", data-toggle="dropdown", aria-haspopups="true", aria-expanded="false") Settings
           .dropdown-menu(aria-labelledby="accountDropdown")
             a.dropdown-item(href="/account") My Account
+            a.dropdown-item(href="/invert") Invert Theme
             a.dropdown-item(href="/logout") Logout
       else
         .nav-item.navbar-right(class=(title == 'Log in') ? 'active' : null)

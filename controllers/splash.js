@@ -5,16 +5,26 @@ const closeRef = '4. close';
 const Bluebird = require('bluebird');
 const rp = require('request-promise');
 const iextradingRoot = 'https://api.iextrading.com/1.0';
+const redis = require('redis');
+const redisClient = redis.createClient({
+    url: process.env.REDIS_URL,
+});
+const { promisify } = require('util');
+const redisGetAsync = promisify(redisClient.get).bind(redisClient);
+const redisSetAsync = promisify(redisClient.set).bind(redisClient);
 
 /**
  * GET /
  *
  * Splash page of market indices
  */
-exports.index = function(req, res) {
+exports.index = function (req, res) {
 
-  iexIntradayIndexGet()
-    .then(async function(data) {
+  //Get the data from the cache,
+  //which will automatically update itself if data is too old
+  getSplashChartDataRedis()
+    .then(async function (data) {
+      
       // Format
       let spFormat = formatData(data.spResponse);
       let nsdqFormat = formatData(data.nsdqResponse);
@@ -26,7 +36,7 @@ exports.index = function(req, res) {
       let spNorm = normalizeData(spFormat, quotes.spQuote.previousClose);
       let nsdqNorm = normalizeData(nsdqFormat, quotes.nsdqQuote.previousClose);
       let djiaNorm = normalizeData(djiaFormat, quotes.djiaQuote.previousClose);
-
+      
       res.render('splash', {
         title: 'Home',
 
@@ -48,7 +58,7 @@ exports.index = function(req, res) {
 
         dataLoad: true
       });
-    }).catch(function(err) {
+    }).catch(function (err) {
       console.log(err);
 
       res.render('splash', {
@@ -68,7 +78,7 @@ exports.index = function(req, res) {
 
         dataLoad: false
       })
-  })
+    })
 };
 
 
@@ -98,11 +108,11 @@ async function iexIntradayIndexGet() {
     intradayIndexGet('SPY'),
     intradayIndexGet('QQQ'),
     intradayIndexGet('DIA')
-  ]).catch(function(err) {
+  ]).catch(function (err) {
     console.log(err);
   });
 
-  return {spResponse, nsdqResponse, djiaResponse};
+  return { spResponse, nsdqResponse, djiaResponse };
 }
 
 
@@ -114,13 +124,13 @@ async function intradayIndexGet(ticker) {
 }
 
 
-const formatData = function(data) {
-  for(i in data) {
+const formatData = function (data) {
+  for (i in data) {
 
-    if((data[i].average === 0) && (data[i].volume === 0)) {
+    if ((data[i].average === 0) && (data[i].volume === 0)) {
       data.splice(i, 1);
     } else {
-      data[i].x = data[i].date.substring(0,4) + '-' + data[i].date.substring(4,6) + '-' + data[i].date.substring(6,8) + ' ' +  data[i].minute;
+      data[i].x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
       data[i].y = data[i].average;
       delete data[i].date;
       delete data[i].minute;
@@ -133,12 +143,12 @@ const formatData = function(data) {
 };
 
 
-const normalizeData = function(data, prevClose) {
+const normalizeData = function (data, prevClose) {
 
   let normData = [];
 
-  for(i in data) {
-    let obj ={};
+  for (i in data) {
+    let obj = {};
     obj.x = data[i].x;
     obj.y = (data[i].y - prevClose) * 100 / prevClose;
     normData.push(obj);
@@ -148,7 +158,7 @@ const normalizeData = function(data, prevClose) {
 };
 
 
-const getQuote = function(ticker) {
+const getQuote = function (ticker) {
   return rp({
     uri: `${iextradingRoot}/stock/${ticker}/quote/1d?filter=previousClose,change,changePercent,latestPrice`,
     json: true,
@@ -161,9 +171,41 @@ async function getIndexQuotes() {
     getQuote('SPY'),
     getQuote('QQQ'),
     getQuote('DIA')
-  ]).catch(function(err) {
+  ]).catch(function (err) {
     console.log(err);
   });
 
-  return {spQuote, nsdqQuote, djiaQuote};
+  return { spQuote, nsdqQuote, djiaQuote };
 }
+
+/**
+ * Update the chart data in redis and return the value set to
+ */
+const updateSplashChartDataRedis = async () => {
+  const data = iexIntradayIndexGet();
+  try {
+    redisSetAsync('splashChart', JSON.stringify(await data), 'EX', 60); //Save for 1 minute
+    return data;
+  } catch (e) {
+    console.log(e);
+  }
+};
+
+/**
+* Get the splash chart data from redis
+*/
+const getSplashChartDataRedis = async () => {
+  try {
+    const data = redisGetAsync('splashChart');
+    if (await data === null) {
+      throw new Error('Redis: chart data needs updating.');
+    }
+    return JSON.parse(await data);
+  } catch (e) {
+      //There was an error getting the data from redis
+      //It might have expired, update it and retry
+      console.log(e);
+      const data = await updateSplashChartDataRedis();
+      return data;
+  }
+};

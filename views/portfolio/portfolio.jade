@@ -129,6 +129,24 @@ block content
       a.btn.btn-primary.mr-1(href=`/portfolio/${portfolioId}/transaction/edit`) Add Transaction
       a.btn.btn-primary.mr-1(href="/portfolio/"+portfolioId+"/transactions") Edit Transactions
 
+
+    if news && news.length > 0
+      h3.mt-3 News about securities in your portfolio
+      hr
+      .row
+        each article in news
+          .col-md-4
+            .card(style={margin: '10px 0 10px 0'})
+              .card-body
+                h5.card-title
+                  a(style={color: 'inherit'},href=article.url) #{article.headline}
+                h6.card-subtitle.text-muted #{article.datetime.substring(0, 10)}
+                hr
+                p.card-text #{article.summary}
+                a.card-link(href=article.url) Link to article
+
+
+
       script.
         window.onload = function () {
           var ctx = document.getElementById("normChart").getContext('2d');
@@ -179,3 +197,6 @@ block content
             }
           })
         }
+
+
+
