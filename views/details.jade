@@ -13,139 +13,11 @@ block content
                 else
                     span(style={color:'#9E9E9E'}) #{changeFormatted} (#{percentChangeFormatted})
             h5.text-muted #{exchange}: #{ticker}
+
     .row
         .col-md-12
             hr
             canvas(id='myChart')
-            script.
-
-                window.onload = function() {
-                  var dayData = !{chartDay};
-                  var monthData = !{chartMonth};
-                  var threeMonthData = !{chartThrMonth};
-                  var yearData = !{chartYear};
-                  var titles = ['1 Day', '1 Month', '3 Month', '1 Year'];
-
-                  var baseline = {
-                    label: 'Previous Close',
-                    fill: false,
-                    data: !{baseline},
-                    borderColor: [
-                      '#212121'
-                    ],
-                    borderDash: [10, 5],
-                    borderWidth: 1,
-                    pointRadius: 0
-                  }
-
-                  var ctx = document.getElementById("myChart").getContext('2d');
-                  var myChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                      labels: ["Stock Price"],
-                      datasets: [{
-                        label: titles[0],
-                        fill: 2,
-                        lineTension: 0,
-                        data: dayData,
-                        borderColor: [
-                          !{chartColor}
-                        ],
-                        borderWidth: 2,
-                        pointRadius: 0
-                      }, baseline]
-                    },
-                    options: {
-                      spanGaps: true,
-                      scales: {
-                        xAxes:[{
-                          type: 'time',
-                          display: true,
-                          scaleLabel: {
-                            display: true,
-                            labelString: "Time"
-                          }
-                        }],
-                        yAxes: [{
-                          scaleLabel: {
-                            display: true,
-                            labelString: "Price ($)"
-                          }
-                        }]
-                      }
-                    }
-                  })
-                    var ct = document.getElementById("yearChart").getContext('2d');
-                    var yearChart = new Chart(ct, {
-                      type: 'line',
-                      data: {
-                        labels: ["Stock Price"],
-                        datasets: [{
-                          label: 'Dividend and Splits in Past Year',
-                          fill: 2,
-                          lineTension: 0,
-                          data: !{chartYear},
-                          borderColor: [
-                            '#212121'
-                          ],
-                          borderWidth: false,
-                          pointRadius: 0
-                        }]
-                      },
-                      options: {
-                        spanGaps: true,
-                        scales: {
-                          xAxes: [{
-                            type: 'time',
-                            display: true,
-                            scaleLabel: {
-                              display: true,
-                              labelString: "Date"
-                            }
-                          }],
-                          yAxes: [{
-                            scaleLabel: {
-                              display: true,
-                              labelString: "Price ($)"
-                            }
-                          }]
-                        },
-                        annotation: {
-                          annotations: !{annotations}
-                        }
-
-                      }
-                    })
-                  $('#day').click(function () {
-                    myChart.data.datasets[0].data = dayData;
-                    myChart.data.datasets[0].label = titles[0];
-
-                    if(myChart.data.datasets.length != 2) {
-                      myChart.data.datasets.push(baseline);
-                    }
-
-                    myChart.update();
-                  })
-                  $('#oneM').click(function () {
-                    myChart.data.datasets[0].data = monthData;
-                    myChart.data.datasets.splice(1, 1);
-                    myChart.data.datasets[0].label = titles[1];
-                    myChart.update();
-                  })
-                  $('#thrM').click(function () {
-                    myChart.data.datasets[0].data = threeMonthData;
-                    myChart.data.datasets[0].label = titles[2];
-                    myChart.data.datasets.splice(1, 1);
-                    myChart.update();
-                  })
-                  $('#year').click(function () {
-                    myChart.data.datasets[0].data = yearData;
-                    myChart.data.datasets[0].label = titles[3];
-                    myChart.data.datasets.splice(1, 1);
-                    myChart.update();
-                  })
-                };
-
 
     .row.justify-content-center.mt-3
         .col-md-2.text-center
@@ -156,6 +28,145 @@ block content
             button(id='thrM').btn.btn-outline-primary.btn-block 3 Month
         .col-md-2.text-center
             button(id='year').btn.btn-outline-primary.btn-block 1 Year
+
+    script.
+
+        window.onload = function() {
+          var dayData = !{chartDay};
+          var monthData = !{chartMonth};
+          var threeMonthData = !{chartThrMonth};
+          var yearData = !{chartYear};
+          var titles = ['1 Day', '1 Month', '3 Month', '1 Year'];
+          var validDayGraph = !{validDayGraph};
+          var defaultGraph = (validDayGraph) ? dayData : monthData;
+
+          var baseline = {
+            label: 'Previous Close',
+            fill: false,
+            data: !{baseline},
+            borderColor: [
+              '#212121'
+            ],
+            borderDash: [10, 5],
+            borderWidth: 1,
+            pointRadius: 0
+          }
+
+          var ctx = document.getElementById("myChart").getContext('2d');
+          var myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: ["Stock Price"],
+              datasets: [{
+                label: titles[0],
+                fill: 2,
+                lineTension: 0,
+                data: defaultGraph,
+                borderColor: [
+                  !{chartColor}
+                ],
+                borderWidth: 2,
+                pointRadius: 0
+              }, baseline]
+            },
+            options: {
+              spanGaps: true,
+              scales: {
+                xAxes:[{
+                  type: 'time',
+                  display: true,
+                  scaleLabel: {
+                    display: true,
+                    labelString: "Time"
+                  }
+                }],
+                yAxes: [{
+                  scaleLabel: {
+                    display: true,
+                    labelString: "Price ($)"
+                  }
+                }]
+              }
+            }
+          })
+            var ct = document.getElementById("yearChart").getContext('2d');
+            var yearChart = new Chart(ct, {
+              type: 'line',
+              data: {
+                labels: ["Stock Price"],
+                datasets: [{
+                  label: 'Dividend and Splits in Past Year',
+                  fill: 2,
+                  lineTension: 0,
+                  data: !{chartYear},
+                  borderColor: [
+                    '#212121'
+                  ],
+                  borderWidth: false,
+                  pointRadius: 0
+                }]
+              },
+              options: {
+                spanGaps: true,
+                scales: {
+                  xAxes: [{
+                    type: 'time',
+                    display: true,
+                    scaleLabel: {
+                      display: true,
+                      labelString: "Date"
+                    }
+                  }],
+                  yAxes: [{
+                    scaleLabel: {
+                      display: true,
+                      labelString: "Price ($)"
+                    }
+                  }]
+                },
+                annotation: {
+                  annotations: !{annotations}
+                }
+
+              }
+            })
+          $('#day').click(function () {
+            if(!validDayGraph) {
+              alert('There is no data for today\'s trading');
+              return;
+            }
+
+            myChart.data.datasets[0].data = dayData;
+            myChart.data.datasets[0].label = titles[0];
+
+            if(myChart.data.datasets.length != 2) {
+              myChart.data.datasets.push(baseline);
+            }
+
+            myChart.update();
+          })
+          $('#oneM').click(function () {
+            myChart.data.datasets[0].data = monthData;
+            myChart.data.datasets.splice(1, 1);
+            myChart.data.datasets[0].label = titles[1];
+            myChart.update();
+          })
+          $('#thrM').click(function () {
+            myChart.data.datasets[0].data = threeMonthData;
+            myChart.data.datasets[0].label = titles[2];
+            myChart.data.datasets.splice(1, 1);
+            myChart.update();
+          })
+          $('#year').click(function () {
+            myChart.data.datasets[0].data = yearData;
+            myChart.data.datasets[0].label = titles[3];
+            myChart.data.datasets.splice(1, 1);
+            myChart.update();
+          })
+        };
+
+
+
 
     br
     if securityOwnershipInfo
