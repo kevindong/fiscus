@@ -1246,7 +1246,7 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
   // Check if cash
   if(transaction.attributes.ticker === '$') {
-    let currentSecurity = await new CurrentSecurity({portfolioId: portfolioId, ticker: transaction.attributes.ticker}).fetch();
+    let currentSecurity = await new CurrentSecurity({portfolioId: portfolioId, ticker: '$'}).fetch();
 
     if(!currentSecurity) {
 
@@ -1424,7 +1424,7 @@ async function getCurrentSecurities(portfolioId) {
       security.last = -stockData[currentSecurities[i].ticker].close;
       security.change = Math.round( (-stockData[currentSecurities[i].ticker].close + stockData[currentSecurities[i].ticker].open) * 100) / 100;
       security.shares = currentSecurities[i].numShares;
-      security.cost = currentSecurities[i].costBasis;
+      security.cost = currentSecurities[i].costBasis * security.shares;
       security.value = security.shares * security.last;
       security.gain = Math.round((security.cost - security.value) * 100)/100;
       security.pctGain = Math.round((security.gain / security.cost) * 100) / 100;
@@ -1434,7 +1434,7 @@ async function getCurrentSecurities(portfolioId) {
       security.last = stockData[currentSecurities[i].ticker].close;
       security.change = Math.round( (stockData[currentSecurities[i].ticker].close - stockData[currentSecurities[i].ticker].open) * 100) / 100;
       security.shares = currentSecurities[i].numShares;
-      security.cost = currentSecurities[i].costBasis;
+      security.cost = currentSecurities[i].costBasis * security.shares;
       security.value = security.shares * security.last;
       security.gain = Math.round((security.value - security.cost) * 100)/100;
       security.pctGain = Math.round((security.value / security.cost - 1) * 10000) / 100;
