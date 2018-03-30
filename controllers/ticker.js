@@ -1,6 +1,8 @@
 
 const iextradingRoot = 'https://api.iextrading.com/1.0';
 const rp = require('request-promise');
+const Portfolio = require('../models/Portfolio');
+const CurrentSecurity = require('../models/CurrentSecurity');
 const redis = require('redis');
 const redisClient = redis.createClient({
     url: process.env.REDIS_URL,
@@ -56,6 +58,7 @@ exports.tickerDetailsGet = async function (req, res) {
         const high = ohlc.high;
         const color = (change >= 0) ? '#4CAF50' : '#F44336';
         const baseline = [{ x: chartDay[0].x, y: previousClose }, { x: chartDay[chartDay.length - 1].x, y: previousClose }];
+        const securityOwnershipInfo = await getSecurityOwnershipInfo(req, ticker);
         res.render('details', {
             title: ticker + ' - Details',
             ticker,
@@ -74,6 +77,7 @@ exports.tickerDetailsGet = async function (req, res) {
             formatMoney, //function to format money, useful in view
             logoUrl: logo.url,
             keyStats,
+            securityOwnershipInfo,
             chartDay: JSON.stringify(chartDay),
             chartMonth: JSON.stringify(chartMonth),
             chartThrMonth: JSON.stringify(chartThrMonth),
@@ -401,4 +405,34 @@ const getKnownTickersRedis = async () => {
         const tickers = redisGetAsync('knownTickers');
         return tickers;
     }
+};
+
+const getSecurityOwnershipInfo = async (req, ticker) => {
+    if (!req.user) {
+        //They can't own any stock if they're not logged in...
+        return;
+    }
+    let portfolio;
+    try {
+        portfolio = await new Portfolio().where('userId', req.user.attributes.id).fetch();
+    } catch (err) {
+        const msg = `Error in getting user's portfolio.`;
+        console.error(msg);
+        console.error(err);
+    }
+    if (!portfolio) {
+        return;
+    }
+    let currentSecurity;
+    try {
+        currentSecurity = await new CurrentSecurity().where({portfolioId: portfolio.attributes.id, ticker}).fetch();
+    } catch (err) {
+        const msg = `Error in getting current securities.`;
+        console.error(msg);
+        console.error(err);
+    }
+    if (!currentSecurity) {
+        return;
+    }
+    return currentSecurity;
 };
