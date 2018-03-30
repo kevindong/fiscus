@@ -1332,6 +1332,7 @@ async function addToCurrentSecurities(portfolioId, transaction) {
         return;
       } else {
         currentSecurity.attributes.costBasis = ((currentSecurity.attributes.costBasis * currentSecurity.attributes.numShares) - (transaction.attributes.numShares * transaction.attributes.value)) / (sharesNow);
+        currentSecurity.attributes.numShares = sharesNow;
       }
     } else {
       let sharesNow = currentSecurity.attributes.numShares + transaction.attributes.numShares;
