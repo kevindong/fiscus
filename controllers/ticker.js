@@ -186,7 +186,13 @@ exports.iexQuoteGet = async function (ticker) {
 const formatMoney = function (money) {
     if (!money)
         return '?';
-    return money.toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');
+    if (Math.abs(money) >= 1000000000000)
+        return `${(money / 1000000000000).toFixed(2)}T`;
+    if (Math.abs(money) >= 1000000000)
+        return `${(money / 1000000000).toFixed(2)}B`;
+    if (Math.abs(money) >= 1000000)
+        return `${(money / 1000000).toFixed(2)}M`;
+    return money.toFixed(2).replace(/(\d)(?=(\d{3})+\.)/g, '$1,');;
 };
 
 exports.iexDayChartGet = async function (ticker) {
