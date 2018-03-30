@@ -1423,7 +1423,7 @@ async function getCurrentSecurities(portfolioId) {
     if(currentSecurities[i].ticker.charAt(0) === '$') {
       security.ticker = currentSecurities[i].ticker.substr(1) + ' Short';
       security.last = -stockData[currentSecurities[i].ticker].close;
-      security.change = Math.round( -stockData[currentSecurities[i].ticker].close + stockData[currentSecurities[i].ticker].open * 100) / 100;
+      security.change = Math.round( (-stockData[currentSecurities[i].ticker].close + stockData[currentSecurities[i].ticker].open) * 100) / 100;
       security.shares = currentSecurities[i].numShares;
       security.cost = currentSecurities[i].costBasis;
       security.value = security.shares * security.last;
@@ -1433,7 +1433,7 @@ async function getCurrentSecurities(portfolioId) {
     } else {
       security.ticker = currentSecurities[i].ticker;
       security.last = stockData[currentSecurities[i].ticker].close;
-      security.change = Math.round( stockData[currentSecurities[i].ticker].close - stockData[currentSecurities[i].ticker].open * 100) / 100;
+      security.change = Math.round( (stockData[currentSecurities[i].ticker].close - stockData[currentSecurities[i].ticker].open) * 100) / 100;
       security.shares = currentSecurities[i].numShares;
       security.cost = currentSecurities[i].costBasis;
       security.value = security.shares * security.last;
