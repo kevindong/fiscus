@@ -1,3 +1,4 @@
+
 const iextradingRoot = 'https://api.iextrading.com/1.0';
 const rp = require('request-promise');
 const redis = require('redis');
@@ -268,10 +269,8 @@ const getThrMonthData = function (data) {
 };
 
 
-
-
-const formatData = function (data) {
-    for (i in data) {
+const formatData = function(data) {
+    for(i in data) {
         data[i].x = data[i].date;
         data[i].y = data[i].close;
 
