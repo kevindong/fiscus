@@ -176,7 +176,7 @@ block content
                     .card-body
                         - const numShares = securityOwnershipInfo.attributes.numShares;
                         - const value = formatMoney(securityOwnershipInfo.attributes.numShares*lastPrice);
-                        - const profit = formatMoney(securityOwnershipInfo.attributes.numShares*lastPrice-securityOwnershipInfo.attributes.costBasis);
+                        - const profit = formatMoney(numShares*lastPrice-securityOwnershipInfo.attributes.costBasis*numShares);
                         - const profitPrefix = profit.includes('-') ? '' : '+';
                         h5.card-text You own: #{numShares} shares, $#{value} 
                             if profitPrefix == '+'
