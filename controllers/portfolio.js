@@ -77,14 +77,24 @@ exports.home = async function (req, res) {
     return res.render(`error`, {msg, title: 'Error'});
   }
 
+  let chartColor;
+  if(portfolioChart === null) {
+    chartColor = null;
+  } else {
+    chartColor = (portfolioChart[portfolioChart.length - 1].y > 0) ? '#4CAF50' : '#F44336'
+  }
+
+  console.log(portfolioChart !== null);
+
   return res.render('portfolio/portfolio.jade', {
     title: 'Portfolio',
     portfolioId: portfolio.attributes.id,
     transactions: transactions,
     securityNames: securityNames,
-    validChart: (portfolio === null),
+    validChart: (portfolioChart !== null),
     portfolioChart: JSON.stringify(portfolioChart),
-    currentSecurities: currentSecurities
+    currentSecurities: currentSecurities,
+    chartColor: JSON.stringify(chartColor)
   });
 };
 
@@ -1360,7 +1370,7 @@ async function getCurrentSecurities(portfolioId) {
     let security = {};
 
     // Handle Shorts
-    if(currentSecurities.ticker.charAt(0) === '$') {
+    if(currentSecurities[i].ticker.charAt(0) === '$') {
       security.ticker = currentSecurities[i].ticker.substr(1) + ' Short';
       security.last = -stockData[currentSecurities[i].ticker].close;
       security.change = Math.round( -stockData[currentSecurities[i].ticker].close + stockData[currentSecurities[i].ticker].open * 100) / 100;

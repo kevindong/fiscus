@@ -1,7 +1,7 @@
 extends ../layout
 
 block content
-  if !{validChart}
+  if validChart
     .card.mb-3
       .card-body
         canvas(id='normChart')
@@ -142,7 +142,7 @@ block content
                 lineTension: 0,
                 data: !{portfolioChart},
                 borderColor: [
-                  '#FF8A65'
+                  !{chartColor}
                 ],
                 backgroundColor: [
                   'rgba(255,138,101, 0.3)'
