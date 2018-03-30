@@ -29,13 +29,15 @@ exports.tickerDetailsGet = async function (req, res) {
         const dayData = await exports.iexDayChartGet(ticker, '1d');
         const chartDay = formatDayData(dayData);
 
-
-
-        // const monthData = await exports.iexChartGet(ticker, '1m');
-        // const chartMonth = await formatData(monthData);
-        //
-        // const thrMonthData = await exports.iexChartGet(ticker, '3m');
-        // const chartThrMonth = await formatData(thrMonthData);
+        let baseline;
+        let validDayGraph;
+        if(chartDay.length === 0) {
+          validDayGraph = false;
+          baseline = null;
+        } else {
+          validDayGraph = false;
+          baseline = [{ x: chartDay[0].x, y: previousClose }, { x: chartDay[chartDay.length - 1].x, y: previousClose }];
+        }
 
         const chartYearData = await exports.iexChartGet(ticker, '1y');
         const chartYear = await formatData(chartYearData);
@@ -57,7 +59,7 @@ exports.tickerDetailsGet = async function (req, res) {
         const low = ohlc.low;
         const high = ohlc.high;
         const color = (change >= 0) ? '#4CAF50' : '#F44336';
-        const baseline = [{ x: chartDay[0].x, y: previousClose }, { x: chartDay[chartDay.length - 1].x, y: previousClose }];
+
         const securityOwnershipInfo = await getSecurityOwnershipInfo(req, ticker);
         res.render('details', {
             title: ticker + ' - Details',
@@ -84,7 +86,8 @@ exports.tickerDetailsGet = async function (req, res) {
             chartYear: JSON.stringify(chartYear),
             chartColor: JSON.stringify(color),
             baseline: JSON.stringify(baseline),
-            annotations: JSON.stringify(dividends.concat(splits))
+            annotations: JSON.stringify(dividends.concat(splits)),
+            validDayGraph: validDayGraph
         });
     } catch (e) {
         console.log(e);
