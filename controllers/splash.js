@@ -24,6 +24,8 @@ exports.index = function (req, res) {
   //which will automatically update itself if data is too old
   getSplashChartDataRedis()
     .then(async function (data) {
+
+      console.log(data);
       
       // Format
       let spFormat = formatData(data.spResponse);
@@ -127,7 +129,7 @@ async function intradayIndexGet(ticker) {
 const formatData = function (data) {
   for (i in data) {
 
-    if ((data[i].average === 0) && (data[i].volume === 0)) {
+    if (data[i].volume === 0) {
       data.splice(i, 1);
     } else {
       data[i].x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
