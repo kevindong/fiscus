@@ -36,7 +36,7 @@ exports.tickerDetailsGet = async function (req, res) {
           baseline = null;
         } else {
           validDayGraph = false;
-          baseline = [{ x: chartDay[0].x, y: previousClose }, { x: chartDay[chartDay.length - 1].x, y: previousClose }];
+          baseline = [{ x: chartDay[0].x, y: quote.previousClose }, { x: chartDay[chartDay.length - 1].x, y: quote.previousClose }];
         }
 
         const chartYearData = await exports.iexChartGet(ticker, '1y');
