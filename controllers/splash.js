@@ -19,21 +19,21 @@ const redisSetAsync = promisify(redisClient.set).bind(redisClient);
  * Splash page of market indices
  */
 exports.index = function (req, res) {
-
+  
   //Get the data from the cache,
   //which will automatically update itself if data is too old
   getSplashChartDataRedis()
     .then(async function (data) {
 
-      console.log(data);
+      //console.log(data);
       
       // Format
       let spFormat = formatData(data.spResponse);
       let nsdqFormat = formatData(data.nsdqResponse);
       let djiaFormat = formatData(data.djiaResponse);
-
+      
       let quotes = await getIndexQuotes();
-
+      
       // Normalize
       let spNorm = normalizeData(spFormat, quotes.spQuote.previousClose);
       let nsdqNorm = normalizeData(nsdqFormat, quotes.nsdqQuote.previousClose);
@@ -57,8 +57,8 @@ exports.index = function (req, res) {
         spNormData: JSON.stringify(spNorm),
         nsdqNormData: JSON.stringify(nsdqNorm),
         djiaNormData: JSON.stringify(djiaNorm),
-
-        dataLoad: true
+        
+        dataLoad: true,
       });
     }).catch(function (err) {
       console.log(err);
@@ -78,9 +78,9 @@ exports.index = function (req, res) {
         djiaChng: '0.00',
         djiaPctChng: '0.00%',
 
-        dataLoad: false
-      })
-    })
+        dataLoad: false,
+      });
+    });
 };
 
 
