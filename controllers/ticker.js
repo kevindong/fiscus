@@ -35,7 +35,7 @@ exports.tickerDetailsGet = async function (req, res) {
           validDayGraph = false;
           baseline = null;
         } else {
-          validDayGraph = false;
+          validDayGraph = true;
           baseline = [{ x: chartDay[0].x, y: quote.previousClose }, { x: chartDay[chartDay.length - 1].x, y: quote.previousClose }];
         }
 
@@ -214,21 +214,21 @@ exports.iexChartGet = async function (ticker, timeframe) {
 
 
 const formatDayData = function (data) {
-    for (i in data) {
+  for (i in data) {
 
-        if ((data[i].average === 0) && (data[i].volume === 0)) {
-            data.splice(i, 1);
-        } else {
-            data[i].x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
-            data[i].y = data[i].average;
-            delete data[i].date;
-            delete data[i].minute;
-            delete data[i].average;
-        }
-
+    if (data[i].volume === 0) {
+      data.splice(i, 1);
+    } else {
+      data[i].x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
+      data[i].y = data[i].average;
+      delete data[i].date;
+      delete data[i].minute;
+      delete data[i].average;
     }
 
-    return data;
+  }
+
+  return data;
 };
 
 const getIndexOfDate = function (date, array) {
