@@ -4,82 +4,10 @@ extends layout
 block content
     .container
         //.jumbotron
-        br
-        br
-        .row.align-items-center
-            .col-4
-                .row.justify-content-center
-                    if spChng > 0
-                        .col-6
-                            h3 #[strong S&P 500#[sup 1]]
-                            h2(style={color:'#4CAF50'}).align-self-end #{sp}
-                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{spChng} (+#{spPctChng})
-                        img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
-
-                    else if spChng < 0
-                        .col-6
-                            h3 #[strong S&P 500#[sup 1]]
-                            h2(style={color: '#F44336'}).align-self-end #{sp}
-                            h6(style={color: '#F44336'}).mt-0.align-self-end #{spChng} (#{spPctChng})
-                        img(src='/img/arrow-down.svg').d-flex.align-self-center.mr-3.col-3
-
-                    else
-                        .col-6
-                            h3 #[strong S&P 500#[sup 1]]
-                            h2(style={color: '#9E9E9E'}).align-self-end #{sp}
-                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{spChng} (#{spPctChng})
-
-            .col-4
-                .row.justify-content-center
-                    if djiaChng > 0
-                        .col-6
-                            h3 #[strong DOW#[sup 1]]
-                            h2(style={color: '#4CAF50'}).align-self-end #{djia}
-                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{djiaChng} (+#{djiaPctChng})
-                        img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
-
-                    else if djiaChng < 0
-                        .col-6
-                            h3 #[strong DOW#[sup 1]]
-                            h2(style={color: '#F44336'}).align-self-end #{djia}
-                            h6(style={color: '#F44336'}).mt-0.align-self-end #{djiaChng} (#{djiaPctChng})
-                        img(src='/img/arrow-down.svg').d-flex.align-self-center.mr-3.col-3
-
-                    else
-                        .col-6
-                            h3 #[strong DOW#[sup 1]]
-                            h2(style={color: '#9E9E9E'}).align-self-end #{djia}
-                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{djiaChng} (#{djiaPctChng})
-
-
-            .col-4
-                .row.justify-content-center
-                    if nsdqChng > 0
-                        .col-6
-                            h3 #[strong NASDAQ#[sup 1]]
-                            h2(style={color: '#4CAF50'}).align-self-end #{nsdq}
-                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{nsdqChng} (+#{nsdqPctChng})
-                        img(src='/img/arrow-up.svg').d-flex.align-self-center.mr-3.col-3
-
-                    else if nsdqChng < 0
-                        .col-6
-                            h3 #[strong NASDAQ#[sup 1]]
-                            h2(style={color: '#F44336'}).align-self-end #{nsdq}
-                            h6(style={color: '#F44336'}).mt-0.align-self-end #{nsdqChng} (#{nsdqPctChng})
-                        img(src='/img/arrow-down.svg').d-flex.align-self-center.mr-3.col-3
-
-                    else
-                        .col-6
-                            h3 #[strong NASDAQ#[sup 1]]
-                            h2(style={color: '#9E9E9E'}).align-self-end #{nsdq}
-                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{nsdqChng} (#{nsdqPctChng})
-
-        br
-        br
-
         .row
             hr
-            canvas(id='normChart')
+            div(style="height: 50vh; width: 100%;")
+                canvas(id='normChart')
             if user && user.darkTheme
                 script.
                     var darkMode = true;
@@ -137,6 +65,8 @@ block content
                   },
                   options: {
                     spanGaps: true,
+                    responsive: true,
+                    maintainAspectRatio: false,
                     title: {
                       display: true,
                       text: 'Major Indices Daily Returns',
@@ -160,12 +90,81 @@ block content
                   }
                 })
               }
-
+        if dataLoad == false
+            p(style={'text-align': 'center'}) Market Data Failed to Load - Please Reload in a Moment
         br
         br
         .row
+            .col-md-4.col-12
+                .row
+                    if spChng > 0
+                        .col-6
+                            h3 #[strong S&P 500#[sup 1]]
+                            h2(style={color:'#4CAF50'}).align-self-end #{sp}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{spChng} (+#{spPctChng})
+                        img(src='/img/arrow-up.svg').col-6
+
+                    else if spChng < 0
+                        .col-6
+                            h3 #[strong S&P 500#[sup 1]]
+                            h2(style={color: '#F44336'}).align-self-end #{sp}
+                            h6(style={color: '#F44336'}).mt-0.align-self-end #{spChng} (#{spPctChng})
+                        img(src='/img/arrow-down.svg').col-6
+
+                    else
+                        .col-6
+                            h3 #[strong S&P 500#[sup 1]]
+                            h2(style={color: '#9E9E9E'}).align-self-end #{sp}
+                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{spChng} (#{spPctChng})
+
+            .col-md-4.col-12
+                .row
+                    if djiaChng > 0
+                        .col-6
+                            h3 #[strong DOW#[sup 1]]
+                            h2(style={color: '#4CAF50'}).align-self-end #{djia}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{djiaChng} (+#{djiaPctChng})
+                        img(src='/img/arrow-up.svg').col-6
+
+                    else if djiaChng < 0
+                        .col-6
+                            h3 #[strong DOW#[sup 1]]
+                            h2(style={color: '#F44336'}).align-self-end #{djia}
+                            h6(style={color: '#F44336'}).mt-0.align-self-end #{djiaChng} (#{djiaPctChng})
+                        img(src='/img/arrow-down.svg').col-6
+
+                    else
+                        .col-6
+                            h3 #[strong DOW#[sup 1]]
+                            h2(style={color: '#9E9E9E'}).align-self-end #{djia}
+                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{djiaChng} (#{djiaPctChng})
+
+
+            .col-md-4.col-12
+                .row
+                    if nsdqChng > 0
+                        .col-6
+                            h3 #[strong NASDAQ#[sup 1]]
+                            h2(style={color: '#4CAF50'}).align-self-end #{nsdq}
+                            h6(style={color: '#4CAF50'}).mt-0.align-self-end +#{nsdqChng} (+#{nsdqPctChng})
+                        img(src='/img/arrow-up.svg').col-6
+
+                    else if nsdqChng < 0
+                        .col-6
+                            h3 #[strong NASDAQ#[sup 1]]
+                            h2(style={color: '#F44336'}).align-self-end #{nsdq}
+                            h6(style={color: '#F44336'}).mt-0.align-self-end #{nsdqChng} (#{nsdqPctChng})
+                        img(src='/img/arrow-down.svg').col-6
+
+                    else
+                        .col-6
+                            h3 #[strong NASDAQ#[sup 1]]
+                            h2(style={color: '#9E9E9E'}).align-self-end #{nsdq}
+                            h6(style={color: '#9E9E9E'}).mt-0.align-self-end #{nsdqChng} (#{nsdqPctChng})
+
+        br
+        br
+
+        .row
             .col-md-12
                 p(style= {color: '#9E9E9E'}) #[sup 1]ETF (Exchange Traded Fund)
-
-        if dataLoad == false
-            p(style={'text-align': 'center'}) Market Data Failed to Load - Please Reload in a Moment
