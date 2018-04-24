@@ -28,6 +28,9 @@ block content
             button(id='thrM').btn.btn-outline-primary.btn-block 3 Month
         .col-md-2.text-center
             button(id='year').btn.btn-outline-primary.btn-block 1 Year
+        .col-md-2.text-center
+            button(type='button', data-toggle='button', aria-pressed='false', autocomplete='off', id='autoFit').btn.btn-primary.btn-block Auto Fit (On)
+
 
     script.
 
@@ -162,6 +165,16 @@ block content
             myChart.data.datasets[0].label = titles[3];
             myChart.data.datasets.splice(1, 1);
             myChart.update();
+          })
+          $('#autoFit').click(function () {
+              if (myChart.options.scales.yAxes[0].ticks.beginAtZero) {
+                  myChart.options.scales.yAxes[0].ticks.beginAtZero = false;
+                  $(this).text("Auto Fit (On)");
+              } else {
+                  myChart.options.scales.yAxes[0].ticks.beginAtZero = true;
+                  $(this).text("Auto Fit (Off)");
+              }
+              myChart.update();
           })
         };
 
