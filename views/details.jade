@@ -32,6 +32,12 @@ block content
             button(type='button', data-toggle='button', aria-pressed='false', autocomplete='off', id='autoFit').btn.btn-primary.btn-block Auto Fit (On)
 
 
+    if user && user.darkTheme
+        script.
+            var darkMode = true;
+    else
+        script.
+            var darkMode = false;
     script.
 
         window.onload = function() {
@@ -56,6 +62,7 @@ block content
           }
 
           var ctx = document.getElementById("myChart").getContext('2d');
+          Chart.defaults.global.defaultFontColor = darkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
           var myChart = new Chart(ctx, {
             type: 'line',
             data: {

@@ -80,9 +80,16 @@ block content
         .row
             hr
             canvas(id='normChart')
+            if user && user.darkTheme
+                script.
+                    var darkMode = true;
+            else
+                script.
+                    var darkMode = false;
             script.
               window.onload = function () {
                 var ctx = document.getElementById("normChart").getContext('2d');
+                Chart.defaults.global.defaultFontColor = darkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
                 var myChart = new Chart(ctx, {
                   type: 'line',
                   data: {
@@ -132,7 +139,7 @@ block content
                     spanGaps: true,
                     title: {
                       display: true,
-                      text: 'Major Indices Daily Returns'
+                      text: 'Major Indices Daily Returns',
                     },
                     scales: {
                       xAxes: [{
@@ -140,16 +147,16 @@ block content
                         display: true,
                         scaleLabel: {
                           display: true,
-                          labelString: "Time"
+                          labelString: "Time",
                         }
                       }],
                       yAxes: [{
                         scaleLabel: {
                           display: true,
-                          labelString: "Pct. Change (%)"
-                        }
+                          labelString: "Pct. Change (%)",
+                        },
                       }]
-                    }
+                    },
                   }
                 })
               }

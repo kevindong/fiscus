@@ -67,7 +67,7 @@ block content
             - totalGain = Math.round(totalGain * 100) / 100
             - if (totalCost != 0) totalGainPct = Math.round((totalValue / totalCost - 1) * 10000) / 100
             - totalDaysGain = Math.round(totalDaysGain * 100) / 100
-            tr(style="border-top: 2px solid black")
+            tr
               td Total:
               td
               if totalChange > 0
@@ -133,10 +133,16 @@ block content
               hr
               p.card-text #{article.summary}
               a.card-link(href=article.url) Link to article
-
+      if user && user.darkTheme
+        script.
+          var darkMode = true;
+      else
+        script.
+          var darkMode = false;
       script.
         window.onload = function () {
           var ctx = document.getElementById("normChart").getContext('2d');
+          Chart.defaults.global.defaultFontColor = darkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
           var myChart = new Chart(ctx, {
             type: 'line',
             data: {
