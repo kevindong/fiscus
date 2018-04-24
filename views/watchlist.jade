@@ -1,0 +1,74 @@
+extends layout
+
+block content
+  style td { vertical-align: middle !important}
+  .card
+    .card-body
+      h5.card-title Watchlist
+      .table-responsive
+        table.table.mb-0
+          thead
+            tr
+              th(scope="col") Security
+              th(scope="col") Date Added
+              th(scope="col") Initial Value
+              th(scope="col") Current Value
+              th(scope="col") Difference
+              th(scope="col") Details
+              th(scope="col") Delete
+          tbody
+            each security in watchedSecurities
+              tr.align-middle
+                td #{security.name}
+                td #{security.dateAdded.toISOString().substring(0,10)}
+                td.text-right #{security.initialPrice}
+                td.text-right #{security.currentPrice}
+                - const diff = (security.currentPrice - security.initialPrice).toFixed(2)
+                - const diffPercentage = (Math.abs((security.currentPrice / security.initialPrice) - 1)).toFixed(2)
+                if diff > 0
+                  td.green.text-right +#{diff} (#{diffPercentage}%)
+                else if diff == 0
+                  td.text-right 0.00 (0.00%)
+                else
+                  td.red.text-right #{diff}  (#{diffPercentage}%)
+                td
+                  a.btn.btn-secondary(href='/ticker/details/#{security.ticker}') #{security.ticker}
+                td
+                  a.btn.btn-danger(href='/watchlist/#{security.id}/delete') Delete
+    .card-footer.text-right
+      button.btn.btn-primary(type='button', data-toggle='modal', data-target='#addWatchlist') Add Security
+  #addWatchlist.modal.fade(role='dialog', aria-hidden='true')
+    .modal-dialog(role='document')
+      .modal-content
+        .modal-header
+          h5.modal-title Add to watchlist
+        .modal-body
+          .form-group
+            label(for=`search-bar-transactions`) Ticker
+            select.form-control#search-bar-transactions(name=`ticker`, type=`text`, maxLength=8)
+        .modal-footer
+          button.btn.btn-secondary(type='button', data-dismiss='modal') Close
+          button.btn.btn-primary(onclick='addToWatchlist()', id='submitButton') Submit
+  script.
+    function addToWatchlist() {
+      $('#submitButton').html('<i class="fas fa-spinner fa-pulse"></i>');
+      $('#submitButton').toggleClass('disabled');
+      $.ajax({
+        type: "POST",
+        url: "/watchlist/add",
+        data: {ticker: $('#search-bar-transactions').val()},
+        dataType: 'json',
+        success: function (data) {
+          if (data.success) {
+            $('#submitButton').toggleClass('disabled');
+            $('#submitButton').html('Submit');
+            $('#search-bar-transactions').val(null).trigger('change');
+            alert('The selected security was successfully added! Please refresh the page to see it or continue to add securities to your watchlist.');
+          } else {
+            $('#submitButton').toggleClass('disabled');
+            $('#submitButton').html('Submit');
+            alert(`Your request failed with the following error message: ${data.msg}`);
+          }
+        }
+      });
+    }

@@ -25,7 +25,6 @@ exports.index = function (req, res) {
   getSplashChartDataRedis()
     .then(async function (data) {
 
-      //console.log(data);
       
       // Format
       let spFormat = formatData(data.spResponse);

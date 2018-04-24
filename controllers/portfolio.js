@@ -250,6 +250,8 @@ async function getSecurityNames(tickers) {
   return securityNames;
 }
 
+exports.getSecurityNames = getSecurityNames;
+
 /* 
  * GET /portfolio/:portfolioId/transaction/edit
  * GET /portfolio/:portfolioId/transaction/edit/:transactionId

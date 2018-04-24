@@ -23,6 +23,7 @@ var userController = require('./controllers/user');
 var tickerController = require('./controllers/ticker');
 var splashController = require('./controllers/splash');
 var portfolioController = require('./controllers/portfolio');
+var watchlistController = require('./controllers/watchlist');
 
 // Passport OAuth strategies
 require('./config/passport');
@@ -116,6 +117,11 @@ app.post('/portfolio/:portfolioId/transaction/edit', userController.ensureAuthen
 app.post('/portfolio/:portfolioId/transaction/delete/:transactionId', userController.ensureAuthenticated, portfolioController.deleteTransaction);
 app.get('/portfolio/:portfolioId/transaction/export', userController.ensureAuthenticated, portfolioController.exportTransaction)
 app.post('/portfolio/:portfolioId/transaction/import', userController.ensureAuthenticated, portfolioController.importTransaction)
+
+// watchlist
+app.get('/watchlist', userController.ensureAuthenticated, watchlistController.watchlistGet);
+app.post('/watchlist/add', userController.ensureAuthenticated, watchlistController.watchlistAdd);
+app.get('/watchlist/:itemId/delete', userController.ensureAuthenticated, watchlistController.watchlistDelete);
 
 // Production error handler
 if (app.get('env') === 'production') {

@@ -90,7 +90,9 @@ block content
                 td.green #{ totalDaysGain }
               else
                 td.red #{ totalDaysGain }
-
+    .card-footer.text-right
+      button.btn.btn-primary(type='button', data-toggle='modal', data-target='#pieModal')
+        | Show Pie Chart
   .card
     .card-body
       h5.card-title Transactions
@@ -142,6 +144,17 @@ block content
           var darkMode = false;
       script.
         window.onload = function () {
+          var pie = document.getElementById("pieChart").getContext('2d');
+          var pieChart = new Chart(pie, {
+            type: 'pie',
+            data: {
+              datasets: [{
+                data: [#{currentSecurities.map(x => x.value)}],
+                backgroundColor: [#{[...Array(currentSecurities.length).keys()].map(() => `'rgb(${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)},${Math.floor(Math.random()*256)})'`)}]
+              }],
+              labels: [#{currentSecurities.map(x => `'${x.ticker}'`)}]
+            }
+          });
           var ctx = document.getElementById("normChart").getContext('2d');
           Chart.defaults.global.defaultFontColor = darkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
           var myChart = new Chart(ctx, {
@@ -193,6 +206,12 @@ block content
             }
           })
         }
-
-
-
+  #pieModal.modal.fade(tabindex='-1', role='dialog', aria-hidden='true')
+    .modal-dialog(role='document')
+      .modal-content
+        .modal-header
+          h5.modal-title Current Holdings Breakdown
+        .modal-body
+          canvas(id='pieChart')
+        .modal-footer
+          button.btn.btn-secondary(type='button', data-dismiss='modal') Close

@@ -2,6 +2,7 @@
 const iextradingRoot = 'https://api.iextrading.com/1.0';
 const rp = require('request-promise');
 const Portfolio = require('../models/Portfolio');
+const Watchlist = require('../models/Watchlist');
 const CurrentSecurity = require('../models/CurrentSecurity');
 const redis = require('redis');
 const redisClient = redis.createClient({
@@ -61,6 +62,16 @@ exports.tickerDetailsGet = async function (req, res) {
         const color = (change >= 0) ? '#4CAF50' : '#F44336';
 
         const securityOwnershipInfo = await getSecurityOwnershipInfo(req, ticker);
+        let watchlist = null;
+        if (req.user) {
+            watchlist = await new Watchlist().where({
+                userId: req.user.attributes.id,
+                ticker: ticker
+            }).fetch();
+        }
+        if (watchlist != null) {
+            watchlist = watchlist.attributes;
+        }
         res.render('details', {
             title: ticker + ' - Details',
             ticker,
@@ -87,7 +98,8 @@ exports.tickerDetailsGet = async function (req, res) {
             chartColor: JSON.stringify(color),
             baseline: JSON.stringify(baseline),
             annotations: JSON.stringify(dividends.concat(splits)),
-            validDayGraph: validDayGraph
+            validDayGraph: validDayGraph,
+            watchlist: watchlist
         });
     } catch (e) {
         console.log(e);
