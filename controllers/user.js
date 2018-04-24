@@ -411,3 +411,23 @@ exports.invertTheme = function (req, res) {
       });
     });
 };
+
+/**
+ * GET /margins
+ */
+exports.toggleMargins = function (req, res) {
+  const user = new User({ id: req.user.id });
+
+  user.save({ smallMargins: !req.user.attributes['smallMargins'] }, { patch: true })
+    .then(() => {
+      if ("password" in req.body) {
+        req.flash("success", { msg: "Your margin size has been changed." });
+      }
+      res.redirect("/");
+    })
+    .catch(err => {
+      req.flash("error", {
+        msg: 'Something went wrong.'
+      });
+    });
+};
