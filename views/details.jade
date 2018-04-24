@@ -205,6 +205,32 @@ block content
                             else
                                 span(style={color:'#F44336'}) (#{profitPrefix}$#{profit})
     br
+    if user
+        .row
+            .col-md-12
+                .card(style={margin: '10px 0 0 0'})
+                    .card-body
+                        h5.card-text Watchlist Status
+                        if watchlist
+                            p #{ticker} is currently in your watchlist. It was added on #{watchlist.dateAdded.toISOString().substring(0,10)} at the price of $#{watchlist.initialPrice}.
+                            - const diff = (lastPrice - watchlist.initialPrice).toFixed(2)
+                            - const diffPercentage = (100 * Math.abs((lastPrice - watchlist.initialPrice) / watchlist.initialPrice)).toFixed(2)
+                            if diff > 0
+                                p.mb-0 Since being added to your watchlist, #{ticker} has increased in value by: 
+                                    span.green +#{diff} (#{diffPercentage}%)
+                            else if (diff == 0)
+                                p.mb-0 Since being added to your watchlist, #{ticker} has not changed in value. Note that #{ticker} may have changed in value and then returned to its initial value between the time you added #{ticker} to your watchlist and right now. 
+                            else
+                                p.mb-0 Since being added to your watchlist, #{ticker} has decreased in value by: 
+                                    span.red #{diff} (#{diffPercentage}%)
+                        else
+                            p.mb-0 #{ticker} is not in your watchlist.
+                    .card-footer.text-right
+                        if watchlist
+                            a.btn.btn.btn-primary(href="/watchlist/#{watchlist.id}/delete", id='watchlistButton') Remove from Watchlist
+                        else
+                            button.btn.btn-primary(onclick='addToWatchlist(\'#{ticker}\', #{lastPrice})', id='watchlistButton') Add To Watchlist
+    br
     .row
         .col-md-6
             .card(style={margin: '10px 0 10px 0'})
@@ -297,7 +323,24 @@ block content
             hr
             canvas(id='yearChart')
 
-                
+    script.
+        function addToWatchlist(ticker, price) {
+            $('#watchlistButton').html('<i class="fas fa-spinner fa-pulse"></i>');
+            $('#watchlistButton').toggleClass('disabled');
+            $.ajax({
+                type: "POST",
+                url: "/watchlist/add",
+                data: {ticker: ticker, price: price},
+                dataType: 'json',
+                success: function (data) {
+                    if (data.success) {
+                        $('#watchlistButton').toggleClass('btn-primary btn-success');
+                        $('#watchlistButton').html('<i class="fas fa-check"></i>');
+                        alert('The selected security was successfully added! Please refresh the page to see this change reflected on this page.');
+                    }
+                }
+            });
+        }
                 
 
 

@@ -13,8 +13,12 @@ nav.navbar.navbar-expand-lg.navbar-light.justify-content-between
       if user
         .nav-item(class=(title == 'Portfolio') ? 'active' : null)
           a.nav-link(href='/portfolio') Portfolio
+        .nav-item(class=(title == 'Watchlist') ? 'active' : null)
+          a.nav-link(href='/watchlist') Watchlist
       .nav-item.ml-auto.mr-auto(id="search-bar-container")
         select#search-bar
+          if (title.indexOf(' - Details') !== -1)
+            option(selected="selected", value="#{ticker}") #{ticker} - #{name}
       if user && user.isAdmin
         .nav-item(class=(title == 'Admin') ? 'active' : null)
           a.nav-link(href='/admin') Admin Console
