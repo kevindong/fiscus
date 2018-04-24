@@ -91,6 +91,9 @@ app.get('/logout', userController.logout);
 // dark theme
 app.get('/invert', userController.invertTheme);
 
+// toggle margins
+app.get('/margins', userController.toggleMargins);
+
 // ticker routes
 app.get('/ticker/details/:ticker', tickerController.tickerDetailsGet);
 app.get('/ticker/lookup', tickerController.lookupTickerGet);

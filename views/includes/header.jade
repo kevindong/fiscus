@@ -1,4 +1,4 @@
-nav.navbar.navbar-expand-lg.navbar-light
+nav.navbar.navbar-expand-lg.navbar-light.justify-content-between
   a.navbar-brand(href="/")
     img.d-inline-block.align-middle(src="/img/logo.svg", alt="Fiscus" height="33px")
     | &nbsp;
@@ -21,9 +21,10 @@ nav.navbar.navbar-expand-lg.navbar-light
       if user
         .nav-item.dropdown
           a.nav-link.dropdown-toggle.navbar-right(href="#", id="accountDropdown", data-toggle="dropdown", aria-haspopups="true", aria-expanded="false") Settings
-          .dropdown-menu(aria-labelledby="accountDropdown")
+          .dropdown-menu.dropdown-menu-right(aria-labelledby="accountDropdown")
             a.dropdown-item(href="/account") My Account
             a.dropdown-item(href="/invert") Invert Theme
+            a.dropdown-item(href="/margins") Toggle Margins
             a.dropdown-item(href="/logout") Logout
       else
         .nav-item.navbar-right(class=(title == 'Log in') ? 'active' : null)
