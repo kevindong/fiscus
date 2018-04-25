@@ -19,15 +19,43 @@ const redisSetAsync = promisify(redisClient.set).bind(redisClient);
 exports.tickerDetailsGet = async function (req, res) {
     const ticker = req.params.ticker;
     try {
-        const ohlc = await exports.iexOpenHighLowCloseGet(ticker);
-        const news = await exports.iexNews(ticker);
-        const { name, exchange } = await exports.yahooNameExchangeGet(ticker);
-        const financials = await exports.iexFinancialsGet(ticker);
-        const keyStats = await exports.iexKeyStatsGet(ticker);
-        const logo = await exports.iexLogoGet(ticker);
-        const quote = await exports.iexQuoteGet(ticker);
+        const [
+            ohlc, 
+            news, 
+            { name, exchange }, 
+            financials, 
+            keyStats, 
+            logo, 
+            quote, 
+            dayData, 
+            chartYearData,
+            securityOwnershipInfo,
+            dividends,
+            splits
+        ] = await Promise.all([
+            exports.iexOpenHighLowCloseGet(ticker),
+            exports.iexNews(ticker),
+            exports.yahooNameExchangeGet(ticker),
+            exports.iexFinancialsGet(ticker),
+            exports.iexKeyStatsGet(ticker),
+            exports.iexLogoGet(ticker),
+            exports.iexQuoteGet(ticker),
+            exports.iexDayChartGet(ticker, '1d'),
+            exports.iexChartGet(ticker, '1y'),
+            getSecurityOwnershipInfo(req, ticker),
+            getDividends,
+            getSplits
+        ]);
+        const [
+            chartYear,
+            chartMonth,
+            chartThrMonth
+        ] = await Promise.all([
+            formatData(chartYearData),
+            getMonthData(chartYearData),
+            getThrMonthData(chartYearData)
+        ]);
 
-        const dayData = await exports.iexDayChartGet(ticker, '1d');
         const chartDay = formatDayData(dayData);
 
         let baseline;
@@ -40,14 +68,8 @@ exports.tickerDetailsGet = async function (req, res) {
           baseline = [{ x: chartDay[0].x, y: quote.previousClose }, { x: chartDay[chartDay.length - 1].x, y: quote.previousClose }];
         }
 
-        const chartYearData = await exports.iexChartGet(ticker, '1y');
-        const chartYear = await formatData(chartYearData);
-
-        const chartMonth = await getMonthData(chartYearData);
-        const chartThrMonth = await getThrMonthData(chartYearData);
-
-        const dividends = formatDividends(await getDividends(ticker));
-        const splits = formatSplits(await getSplits(ticker));
+        const formattedDividends = formatDividends(dividends);
+        const formattedSplits = formatSplits(splits);
         const lastPrice = quote.latestPrice;
         const closePrice = ohlc.close.price;
         const previousClose = quote.previousClose;
@@ -61,7 +83,7 @@ exports.tickerDetailsGet = async function (req, res) {
         const high = ohlc.high;
         const color = (change >= 0) ? '#4CAF50' : '#F44336';
 
-        const securityOwnershipInfo = await getSecurityOwnershipInfo(req, ticker);
+        
         let watchlist = null;
         if (req.user) {
             watchlist = await new Watchlist().where({
@@ -97,7 +119,7 @@ exports.tickerDetailsGet = async function (req, res) {
             chartYear: JSON.stringify(chartYear),
             chartColor: JSON.stringify(color),
             baseline: JSON.stringify(baseline),
-            annotations: JSON.stringify(dividends.concat(splits)),
+            annotations: JSON.stringify(formattedDividends.concat(formattedSplits)),
             validDayGraph: validDayGraph,
             watchlist: watchlist
         });
