@@ -12,6 +12,12 @@ var CurrentSecurity = require('../models/CurrentSecurity');
 const rp = require('request-promise');
 const iextradingRoot = 'https://api.iextrading.com/1.0';
 
+let freshDividends = {};
+let divStocks = {};
+let totalFreshValue = 0;
+let unfilledDivs = {};
+let recIndx = 0;
+
 /**
  * GET /portfolio
  * For now, gets the first portfolio grabbed from the database
@@ -94,25 +100,25 @@ exports.home = async function (req, res) {
 
 
 
-  // Get current securities
-  let currentSecurities;
-  try {
-    currentSecurities = await getCurrentSecurities(portfolio.id);
-
-    console.log(currentSecurities);
-  } catch (err) {
-    const msg = 'Error when grabbing current securities';
-    console.log(msg);
-    console.log(err);
-    return res.render(`error`, {msg, title: 'Error'});
-  }
-
   // Get chart
   let portfolioChart;
   try {
     portfolioChart = await portfolioChartGet('1m', req.user.attributes.id);
   } catch (err) {
     const msg = 'Error when grabbing portfolio chart';
+    console.log(msg);
+    console.log(err);
+    return res.render(`error`, {msg, title: 'Error'});
+  }
+
+  // Get current securities
+  let currentSecurities;
+  try {
+    currentSecurities = await getCurrentSecurities(portfolio.id);
+
+    //console.log(currentSecurities);
+  } catch (err) {
+    const msg = 'Error when grabbing current securities';
     console.log(msg);
     console.log(err);
     return res.render(`error`, {msg, title: 'Error'});
@@ -252,7 +258,7 @@ async function getSecurityNames(tickers) {
 
 exports.getSecurityNames = getSecurityNames;
 
-/* 
+/**
  * GET /portfolio/:portfolioId/transaction/edit
  * GET /portfolio/:portfolioId/transaction/edit/:transactionId
  * 
@@ -411,9 +417,12 @@ async function addTransaction(transaction, userId) {
   // Check if updatePortfolio works
   try{
     await updatePortfolioValue(transaction, userId);
+    await updateDividends(transaction, userId);
   } catch(err) {
     throw err;
   }
+
+
 
 
   // Save transaction if it does
@@ -467,6 +476,7 @@ async function editTransaction(transaction, oldId, userId) {
 
   try {
     await updatePortfolioValue(cancelTrans, userId);
+    await updateDividends(cancelTrans, userId);
   } catch(err) {
     throw err;
   }
@@ -548,6 +558,12 @@ async function updatePortfolioValue(transaction, userId) {
 
   if(!fresh) {
     throw 'Failed to update portfolio';
+  }
+
+  let freshDiv = await keepDivsFresh(userId);
+
+  if(!freshDiv) {
+    throw 'Failed to update portfolio with dividends';
   }
 
   // Wait for promises to be filled
@@ -984,10 +1000,18 @@ const getIndexOfDate = function(date, array) {
  */
 function getClosestDay(date, array) {
 
+  let origDate;
+
+  if((typeof date) === "string") {
+    origDate = parseDateString(date);
+  } else {
+    origDate = date;
+  }
+
   for(i in array) {
     let tempDate = parseDateString(array[i].date);
 
-    if(tempDate >= date) {
+    if(tempDate >= origDate) {
       return i;
     }
   }
@@ -1008,6 +1032,20 @@ function isAfter(date1, date2) {
   let dateScnd = parseDateString(date2);
 
   return dateFirst > dateScnd;
+}
+
+/**
+ * Boolean check of whether or not the first date is after or equal to the second
+ *
+ * @param date1
+ * @param date2
+ * @returns {boolean}
+ */
+function isAfterOrEqual(date1, date2) {
+  let dateFirst = parseDateString(date1);
+  let dateScnd = parseDateString(date2);
+
+  return dateFirst >= dateScnd;
 }
 
 /**
@@ -1049,6 +1087,8 @@ async function keepFresh(userId) {
 
   let values = portfolio.attributes.value.values;
 
+  let oldLength = values.length;
+
   // Check to see if there are any open positions on the last day recorded
   if(!values[values.length-1].stocks.length) {
     let cash = values[values.length-1].cash; // Cash will not change with updating to latest
@@ -1070,6 +1110,8 @@ async function keepFresh(userId) {
     let dataIndx = getIndexOfDate(values[values.length-1].date, data);
     dataIndx++;
 
+
+
     // For each day up to latest, add empty data
     while(dataIndx < data.length) {
       day.date = data[dataIndx].date;
@@ -1079,6 +1121,8 @@ async function keepFresh(userId) {
 
       values.push(day);
     }
+
+    recIndx = values.length - (oldLength - values.length) - 1;
 
     return true;
   }
@@ -1152,13 +1196,8 @@ async function keepFresh(userId) {
     dataIndx++;
   }
 
-  // TODO - Update to today's data
+  recIndx = values.length - (oldLength - values.length) - 1;
 
-  // Check if either of last two days are 'stale'
-
-  // If either of them are and we have official data, update them
-
-  // For all stocks currently owned, get today's data
 
 
 
@@ -1184,6 +1223,12 @@ async function portfolioChartGet(timeframe, userId) {
 
   try {
     await keepFresh(userId);
+  } catch (err) {
+    console.log(err);
+  }
+
+  try {
+    await keepDivsFresh(userId);
   } catch (err) {
     console.log(err);
   }
@@ -1687,4 +1732,355 @@ async function updateCurrentCash(portfolioId, type, value) {
   }
 
   await temp.save();
+}
+
+
+
+async function getDividendsData(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/dividends/1y`,
+    json: true,
+  });
+
+
+}
+
+async function updateDividends(trans, userId) {
+  // if (type is buy)
+  //    check for valid dividend days after purchase and award cash
+  // if (type is sell)
+  //    check for valid dividend days after sale and remove cash
+  // else
+  //    do nothing
+
+  // Get user's portfolio
+  let portfolio = await new Portfolio({userId: userId}).fetch();
+
+  // Check that the user has a portfolio
+  if(!portfolio) {
+    return false;
+  }
+
+  // Check if the user has added values to the portfolio
+  if(!portfolio.attributes.value) {
+    return true;
+  }
+
+  //let lastExDate = portfolio.attributes.lastExDate;
+
+  let values = portfolio.attributes.value.values;
+
+  let temp = portfolio.attributes.unfilledDivs;
+
+  if(!temp) {
+    unfilledDivs = {};
+  } else {
+    unfilledDivs = temp.unfilledDivs;
+  }
+
+
+  let response = await getDividendsData(trans.attributes.ticker);
+
+  let dividends = formatDividends(response);
+
+  let extraCash = 0;
+  let shares = trans.attributes.numShares;
+
+  switch (trans.attributes.type) {
+    case "Buy":
+
+      for(let exDate in dividends) {
+        if((isAfter(exDate, trans.attributes.dateTransacted)) && (isAfterOrEqual(values[values.length-1].date, dividends[exDate].paymentDate))) {
+          extraCash += dividends[exDate].amount * shares;
+
+          values = updateValuesWithDiv(dividends[exDate], values, "Buy", shares);
+        } else {
+          if((isAfter(exDate, trans.attributes.dateTransacted))) {
+            addToUnfilled(trans.attributes.ticker, dividends[exDate].paymentDate, getDayBefore(exDate, values), dividends[exDate].amount);
+          }
+
+        }
+      }
+      break;
+    case "Sell":
+      for(let exDate in dividends) {
+        if((isAfter(exDate, trans.attributes.dateTransacted)) && (isAfterOrEqual(values[values.length-1].date, dividends[exDate].paymentDate))) {
+          extraCash -= dividends[exDate].amount * shares;
+          values = updateValuesWithDiv(dividends[exDate], values, "Sell", shares);
+        }
+      }
+      break;
+    default:
+      return;
+  }
+
+  await updateCashWithDividend(portfolio.attributes.id, extraCash);
+
+  // Commit to DB
+  portfolio.attributes.unfilledDivs = {unfilledDivs};
+  portfolio.attributes.value = {values};
+  await portfolio.save();
+
+}
+
+
+async function keepDivsFresh(userId) {
+  // Get user's portfolio
+  let portfolio = await new Portfolio({userId: userId}).fetch();
+
+  // Check that the user has a portfolio
+  if(!portfolio) {
+    return false;
+  }
+
+  // Check if the user has added values to the portfolio
+  if(!portfolio.attributes.value) {
+    return true;
+  }
+
+  let temp = portfolio.attributes.unfilledDivs;
+
+  if(!temp) {
+    unfilledDivs = {};
+  } else {
+    unfilledDivs = temp.unfilledDivs;
+  }
+
+  let values = portfolio.attributes.value.values;
+
+  handleUnfilled(values[values.length-1].date, values);
+
+  await buildFreshDividends(values[recIndx], values);
+
+  while(recIndx < ((values.length)-1)) {
+
+    //console.log(freshDividends);
+
+    implementDivs(recIndx, freshDividends[values[recIndx+1].date], values);
+
+    recIndx++;
+  }
+
+  await updateCashWithDividend(portfolio.attributes.id, totalFreshValue);
+
+  // Commit to DB
+  portfolio.attributes.unfilledDivs = {unfilledDivs};
+  portfolio.attributes.value = {values};
+  await portfolio.save();
+
+
+  return true;
+}
+
+function handleUnfilled(finDate, values) {
+  for(let payday in unfilledDivs) {
+    if(isAfterOrEqual(finDate, payday)) {
+      implementUnfilledDivs(payday, unfilledDivs[payday], values);
+      delete unfilledDivs[payday];
+    }
+  }
+}
+
+
+function buildFreshDividendObject(data, ticker, values) {
+  for(let i in data) {
+
+    if(getClosestDay(data[i].paymentDate, values) === -1) {
+
+      addToUnfilled(ticker, data[i].paymentDate, getDayBefore(data[i].exDate, values), data[i].amount);
+
+      continue;
+    }
+
+    let div = {
+      ticker: ticker,
+      paymentDate: data[i].paymentDate,
+      amount: parseFloat(data[i].amount)
+    };
+
+    if(freshDividends.hasOwnProperty(data.exDate)) {
+      freshDividends[data[i].exDate].push(div);
+    } else {
+      freshDividends[data[i].exDate] = [];
+      freshDividends[data[i].exDate].push(div);
+    }
+  }
+}
+
+function addToUnfilled(ticker, payday, date, amount) {
+
+  if(!unfilledDivs.hasOwnProperty(payday)) {
+    unfilledDivs[payday] = [];
+  }
+
+  for(let i in unfilledDivs[payday]) {
+    if(unfilledDivs[payday][i].ticker === ticker) {
+      return;
+    }
+  }
+
+  unfilledDivs[payday].push({
+    ticker: ticker,
+    date: date,
+    amount: amount
+  });
+}
+
+
+function formatDividends(data) {
+
+  let res = {};
+
+  for(i in data) {
+    let div = {
+      paymentDate: data[i].paymentDate,
+      amount: parseFloat(data[i].amount)
+    };
+
+    res[data[i].exDate] = div;
+  }
+
+  return res;
+}
+
+function getDayBefore(dateString, data) {
+  let date = parseDateString(dateString);
+
+  for(i=(data.length-1); i >= 0; i--) {
+    let tempDate = parseDateString(data[i].date);
+
+    if(tempDate < date) {
+      return data[i].date;
+    }
+  }
+
+  return -1
+}
+
+function ownedShares(value, ticker) {
+  for(i in value.stocks) {
+    if(value.stocks[i].ticker === ticker) {
+      return value.stocks[i].shares;
+    }
+  }
+
+  return 0;
+}
+
+async function updateCashWithDividend(portfolioId, value) {
+  let currentCash = await new CurrentSecurity({portfolioId: portfolioId, ticker: '$'}).fetch();
+
+  let temp;
+
+  if(!currentCash) {
+    temp = new CurrentSecurity({
+      portfolioId: portfolioId,
+      ticker: '$',
+      numShares: 1,
+      costBasis: value
+    });
+  } else {
+    currentCash.attributes.costBasis = parseFloat(currentCash.attributes.costBasis);
+    currentCash.attributes.costBasis += value;
+
+    temp = currentCash;
+  }
+
+  await temp.save();
+}
+
+function updateValuesWithDiv(dividend, values, type, shares) {
+
+  let payIndx = getIndexOfDate(dividend.paymentDate, values);
+
+
+
+  while(payIndx < values.length) {
+
+    switch(type) {
+      case "Buy":
+        values[payIndx].cash += (dividend.amount * shares);
+        break;
+      case "Sell":
+        values[payIndx].cash -= (dividend.amount * shares);
+
+        if(values[payIndx].cash < 0) {
+          throw "Cannot sell stock as dividend cash was spent";
+        }
+        break;
+    }
+
+    payIndx++;
+
+  }
+
+  return values;
+}
+
+
+
+
+async function buildFreshDividends(value, values) {
+
+  let dataPromises = [];
+  let indexedTickers = [];
+  let response = [];
+
+
+  for(let i in value.stocks) {
+    // Check if already have dividend data and download if not
+    dataPromises.push(getDividendsData(value.stocks[i].ticker));
+    indexedTickers.push(value.stocks[i].ticker);
+  }
+
+  // Wait for promises to resolve
+  try {
+    response = await Promise.all(dataPromises);
+  } catch (err) {
+    console.log('Failed to get dividend data');
+    return false;
+  }
+
+  for(let i in response) {
+    buildFreshDividendObject(response[i], indexedTickers[i], values);
+  }
+}
+
+
+function implementDivs(dayIndx, dividends, values) {
+
+  //console.log(dividends);
+  for(let i in dividends) {
+
+    let dateIndx = getClosestDay(dividends[i].paymentDate, values);
+
+    let divValue = ownedShares(values[dayIndx], dividends[i].ticker) * dividends[i].amount;
+
+    values = addDiv(dateIndx, divValue, values);
+  }
+}
+
+
+function implementUnfilledDivs(payday, dividends, values) {
+
+  //console.log(dividends);
+  for(let i in dividends) {
+
+    let dateIndx = getClosestDay(payday, values);
+
+    let divValue = ownedShares(dividends[i].date, dividends[i].ticker) * dividends[i].amount;
+
+    values = addDiv(dateIndx, divValue, values);
+  }
+}
+
+
+function addDiv(dateIndx, divValue, values) {
+  while(dateIndx < values.length) {
+    values[dateIndx].cash += divValue;
+
+    dateIndx++;
+  }
+
+  totalFreshValue += divValue;
 }
