@@ -18,6 +18,8 @@ block content
               window.onload = function () {
                 var ctx = document.getElementById("normChart").getContext('2d');
                 Chart.defaults.global.defaultFontColor = darkMode ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)';
+                Chart.defaults.scale.gridLines.color = darkMode ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
+                Chart.defaults.scale.gridLines.drawBorder = false;
                 var myChart = new Chart(ctx, {
                   type: 'line',
                   data: {
@@ -78,7 +80,11 @@ block content
                         scaleLabel: {
                           display: true,
                           labelString: "Time",
-                        }
+                        },
+                        ticks: {
+                            autoSkip: true,
+                            autoSkipPadding: 50,
+                        },
                       }],
                       yAxes: [{
                         scaleLabel: {

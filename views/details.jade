@@ -19,7 +19,19 @@ block content
             hr
             div
                 canvas(id='myChart')
-
+    .row.justify-content-center.mt-3
+        .col-md-5.col-12
+            .form-group
+                label(for='dateFrom') Date From
+                input.form-control#dateFrom(type='date')
+        .col-md-5.col-12
+            .form-group
+                label(for='dateTo') Date To
+                input.form-control#dateTo(type='date')
+        .col-md-2.col-12
+            .form-group
+                label(for='update') &nbsp
+                button.form-control.btn.btn-outline-primary#update Update
     .row.justify-content-center.mt-3
         .col-md-2.text-center
             button(id='day').btn.btn-outline-primary.btn-block 1 Day
@@ -40,8 +52,30 @@ block content
         script.
             var darkMode = false;
     script.
-
+        function getIndexOfClosestDay(date, dateArray) {
+            const target = new Date(date);
+            let wasBefore = false;
+            for (let i = 0; i < dateArray.length; i++) {
+                const currentDay = new Date(dateArray[i].x);
+                if (dateArray[i].x === date) {
+                    return i;
+                }
+                if (target < currentDay && !wasBefore) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        function getIndexOfDay(date, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (array[i].x === date) {
+                    return i;
+                }
+            }
+            return -1;
+        }
         window.onload = function() {
+
           var dayData = !{chartDay};
           var monthData = !{chartMonth};
           var threeMonthData = !{chartThrMonth};
@@ -49,7 +83,8 @@ block content
           var titles = ['1 Day', '1 Month', '3 Month', '1 Year'];
           var validDayGraph = !{validDayGraph};
           var defaultGraph = (validDayGraph) ? dayData : monthData;
-
+          $('#dateFrom').val((validDayGraph) ? dayData[0].x.split(' ')[0]  : yearData[0].x);
+          $('#dateTo').val((validDayGraph) ? dayData[0].x.split(' ')[0]  : yearData[yearData.length-1].x);
           var baseline = {
             label: 'Previous Close',
             fill: false,
@@ -84,6 +119,9 @@ block content
               }, baseline]
             },
             options: {
+              legend: {
+                  display: false,
+              },
               spanGaps: true,
               scales: {
                 xAxes:[{
@@ -92,7 +130,11 @@ block content
                   scaleLabel: {
                     display: true,
                     labelString: "Time"
-                  }
+                  },
+                  ticks: {
+                      autoSkip: true,
+                      autoSkipPadding: 50,
+                  },
                 }],
                 yAxes: [{
                   scaleLabel: {
@@ -129,7 +171,11 @@ block content
                     scaleLabel: {
                       display: true,
                       labelString: "Date"
-                    }
+                    },
+                    ticks: {
+                      autoSkip: true,
+                      autoSkipPadding: 50,
+                    },
                   }],
                   yAxes: [{
                     scaleLabel: {
@@ -149,34 +195,25 @@ block content
               alert('There is no data for today\'s trading');
               return;
             }
-
-            myChart.data.datasets[0].data = dayData;
-            myChart.data.datasets[0].label = titles[0];
-
-            if(myChart.data.datasets.length != 2) {
-              myChart.data.datasets.push(baseline);
-            }
-
-            myChart.update();
-          })
+            $('#dateFrom').val(dayData[0].x.split(' ')[0]);
+            $('#dateTo').val(dayData[0].x.split(' ')[0]);
+            $('#update').click();
+          });
           $('#oneM').click(function () {
-            myChart.data.datasets[0].data = monthData;
-            myChart.data.datasets.splice(1, 1);
-            myChart.data.datasets[0].label = titles[1];
-            myChart.update();
-          })
+            $('#dateFrom').val(monthData[0].x);
+            $('#dateTo').val(monthData[monthData.length-1].x);
+            $('#update').click();
+          });
           $('#thrM').click(function () {
-            myChart.data.datasets[0].data = threeMonthData;
-            myChart.data.datasets[0].label = titles[2];
-            myChart.data.datasets.splice(1, 1);
-            myChart.update();
-          })
+            $('#dateFrom').val(threeMonthData[0].x);
+            $('#dateTo').val(threeMonthData[threeMonthData.length-1].x);
+            $('#update').click();
+          });
           $('#year').click(function () {
-            myChart.data.datasets[0].data = yearData;
-            myChart.data.datasets[0].label = titles[3];
-            myChart.data.datasets.splice(1, 1);
-            myChart.update();
-          })
+            $('#dateFrom').val(yearData[0].x);
+            $('#dateTo').val(yearData[yearData.length-1].x);
+            $('#update').click();
+          });
           $('#autoFit').click(function () {
               if (myChart.options.scales.yAxes[0].ticks.beginAtZero) {
                   myChart.options.scales.yAxes[0].ticks.beginAtZero = false;
@@ -186,11 +223,61 @@ block content
                   $(this).text("Auto Fit (Off)");
               }
               myChart.update();
-          })
+          });
+          $('#update').click(function() {
+              const today = new Date(yearData[yearData.length-1].x);
+              const dateFromStr = $('#dateFrom').val();
+              const dateToStr = $('#dateTo').val();
+              const dateFrom = new Date(dateFromStr);
+              const dateTo = new Date(dateToStr);
+              const difference = Math.round(Math.abs((dateFrom.getTime() - dateTo.getTime())/(24*60*60*1000)));
+              const differenceFromToday = Math.round(Math.abs((today.getTime() - dateFrom.getTime())/(24*60*60*1000)));
+              
+              if (differenceFromToday < 0) {
+                  alert('The starting date cannot be after the current date.');
+                  return;
+              }
+              if (differenceFromToday > 365) {
+                  alert('Fiscus does not support data from over a year ago. Please choose dates within the past year.');
+                  return;
+              }
+              if (difference < 0) {
+                  //Do nothing, error
+                  alert('The starting date cannot be after the ending date');
+                  return;
+              } else if (difference > 0) {
+                  //Load daily graph
+                  const indexOfClosestDateFrom = getIndexOfClosestDay(dateFromStr, yearData);
+                  const indexOfClosestDateTo = getIndexOfClosestDay(dateToStr, yearData);
+                  if (indexOfClosestDateFrom === -1) {
+                      alert(`There's no data for ${dateFromStr}`);
+                      return;
+                  }
+                  if (indexOfClosestDateTo === -1) {
+                      alert(`There's no data for ${dateToStr}`);
+                      return;
+                  }
+                  const newData = yearData.slice(indexOfClosestDateFrom, indexOfClosestDateTo+1);
+                  const newColor = (newData[0].y-newData[newData.length-1].y < 0) ? '#4CAF50' : '#F44336';
+                  myChart.data.datasets[0].data = newData;
+                  myChart.data.datasets[0].borderColor = newColor;
+                  myChart.data.datasets.splice(1, 1);
+                  myChart.update();
+              } else {
+                  //Load intraday graph
+                  if(!validDayGraph) {
+                    alert('There is no data for today\'s trading');
+                    return;
+                  }
+                  myChart.data.datasets[0].data = dayData;
+                  myChart.data.datasets[0].label = titles[0];
+                  if(myChart.data.datasets.length != 2) {
+                    myChart.data.datasets.push(baseline);
+                  }
+                  myChart.update();
+              }
+          });
         };
-
-
-
 
     br
     if securityOwnershipInfo
@@ -207,6 +294,27 @@ block content
                                 span(style={color:'#4CAF50'}) (#{profitPrefix}$#{profit})
                             else
                                 span(style={color:'#F44336'}) (#{profitPrefix}$#{profit})
+    br
+    if transactions && transactions.length > 0
+        .row
+            .col-md-12
+                .card(style={margin: '10px 0 0 0'})
+                    .card-body
+                        h5.card-text Transaction History
+                        table.table.mb-0
+                            thead
+                                tr
+                                    th(scope='col') Date
+                                    th(scope='col') Type
+                                    th(scope='col') Shares
+                                    th(scope='col') Value
+                            tbody
+                                each transaction in transactions
+                                    tr
+                                        th(scope='row') #{transaction.attributes.dateTransacted.toISOString().substring(0,10)}
+                                        td #{transaction.attributes.type}
+                                        td #{transaction.attributes.numShares}
+                                        td $#{transaction.attributes.value}
     br
     if user
         .row

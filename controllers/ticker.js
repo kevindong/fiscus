@@ -3,6 +3,7 @@ const iextradingRoot = 'https://api.iextrading.com/1.0';
 const rp = require('request-promise');
 const Portfolio = require('../models/Portfolio');
 const Watchlist = require('../models/Watchlist');
+const Transaction = require('../models/Transaction');
 const CurrentSecurity = require('../models/CurrentSecurity');
 const redis = require('redis');
 const redisClient = redis.createClient({
@@ -30,6 +31,7 @@ exports.tickerDetailsGet = async function (req, res) {
             dayData, 
             chartYearData,
             securityOwnershipInfo,
+            transactions,
             dividends,
             splits
         ] = await Promise.all([
@@ -43,8 +45,9 @@ exports.tickerDetailsGet = async function (req, res) {
             exports.iexDayChartGet(ticker, '1d'),
             exports.iexChartGet(ticker, '1y'),
             getSecurityOwnershipInfo(req, ticker),
-            getDividends,
-            getSplits
+            getSecurityTransactionInfo(req, ticker),
+            getDividends(ticker),
+            getSplits(ticker)
         ]);
         const [
             chartYear,
@@ -113,6 +116,7 @@ exports.tickerDetailsGet = async function (req, res) {
             logoUrl: logo.url,
             keyStats,
             securityOwnershipInfo,
+            transactions,
             chartDay: JSON.stringify(chartDay),
             chartMonth: JSON.stringify(chartMonth),
             chartThrMonth: JSON.stringify(chartThrMonth),
@@ -248,21 +252,21 @@ exports.iexChartGet = async function (ticker, timeframe) {
 
 
 const formatDayData = function (data) {
-  for (i in data) {
+    let newData = [];
+  for (let i = 0; i < data.length; i++) {
 
     if (data[i].volume === 0) {
-      data.splice(i, 1);
+        //copy.splice(i, 1);
     } else {
-      data[i].x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
-      data[i].y = data[i].average;
-      delete data[i].date;
-      delete data[i].minute;
-      delete data[i].average;
+        let el = {};
+        el.x = data[i].date.substring(0, 4) + '-' + data[i].date.substring(4, 6) + '-' + data[i].date.substring(6, 8) + ' ' + data[i].minute;
+        el.y = data[i].average;
+        newData.push(el);
     }
 
   }
 
-  return data;
+  return newData;
 };
 
 const getIndexOfDate = function (date, array) {
@@ -478,4 +482,31 @@ const getSecurityOwnershipInfo = async (req, ticker) => {
         return;
     }
     return currentSecurity;
+};
+
+const getSecurityTransactionInfo = async (req, ticker) => {
+    if (!req.user) {
+        //There can't be any transactions if they're not logged in...
+        return;
+    }
+    let portfolio;
+    try {
+        portfolio = await new Portfolio().where('userId', req.user.attributes.id).fetch();
+    } catch (err) {
+        const msg = `Error in getting user's portfolio.`;
+        console.error(msg);
+        console.error(err);
+    }
+    let transactions;
+    try {
+        transactions = await new Transaction().where({portfolioId: portfolio.attributes.id, ticker}).fetchAll();
+    }  catch (err) {
+        const msg = `Error in getting transactions.`;
+        console.error(msg);
+        console.error(err);
+    }
+    if (!transactions) {
+        return;
+    }
+    return transactions.models;
 };
