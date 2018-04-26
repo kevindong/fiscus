@@ -306,13 +306,15 @@ exports.editTransactionGet = async function (req, res) {
       title: `Add Transaction`,
       portfolioId: req.params.portfolioId,
       transaction: transaction.attributes,
-      yahooName: `${transaction.attributes.ticker} - ${yahooName.name}`
+      yahooName: `${transaction.attributes.ticker} - ${yahooName.name}`,
+      msg: undefined
     });
   } else { // creating new transaction
     return res.render(`portfolio/edit_transaction`, {
       title: `Add Transaction`,
       portfolioId: req.params.portfolioId,
-      transaction: undefined
+      transaction: undefined,
+      msg: undefined
     });
   }
 };
@@ -381,7 +383,12 @@ exports.editTransactionPost = async function (req, res) {
     const msg = `An error occurred while adding or editing a transaction.`;
     console.error(msg);
     console.error(err);
-    return res.render(`error`, {msg: err, title: `Error`});
+    return res.render(`portfolio/edit_transaction`, {
+      title: `Add Transaction`,
+      portfolioId: req.body.portfolioId,
+      transaction: undefined,
+      msg: err
+    });
   }
 
   req.flash('success', {msg: 'Your transaction has been added/modified.'});
@@ -1334,7 +1341,7 @@ async function addToCurrentSecurities(portfolioId, transaction) {
     if(!currentSecurity) {
 
       if(transaction.attributes.type === 'Withdraw Cash') {
-        throw 'Not enough cash';
+        throw 'Insufficient Funds';
       }
 
       let cash = new CurrentSecurity({
@@ -1352,7 +1359,7 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
       if (transaction.attributes.type === 'Withdraw Cash') {
         if (currentSecurity.attributes.costBasis - transaction.attributes.value < 0) {
-          throw 'Not enough cash';
+          throw 'Insufficient Funds';
         } else {
           currentSecurity.attributes.costBasis -= transaction.attributes.value;
 
@@ -1570,7 +1577,7 @@ async function isValidTransaction(portfolioId, transaction) {
     case 'Buy':
       if (transaction.deductFromCash) {
         if ((cash - transaction.value * transaction.numShares) < 0) {
-          throw 'Not enough cash';
+          throw 'Insufficient Funds';
         }
       }
       break;
@@ -1582,7 +1589,7 @@ async function isValidTransaction(portfolioId, transaction) {
         requestedSecurity = requestedSecurity.toJSON();
 
         if(transaction.numShares > requestedSecurity.numShares) {
-          throw 'Must own enough shares to sell that many';
+          throw 'Not Enough Shares Owned to Sell';
         }
       }
 
@@ -1591,7 +1598,7 @@ async function isValidTransaction(portfolioId, transaction) {
 
       if (transaction.deductFromCash) {
         if ((cash - transaction.value * transaction.numShares) < 0) {
-          throw 'Not enough cash';
+          throw 'Insufficient Funds';
         }
       }
 
@@ -1612,7 +1619,7 @@ async function isValidTransaction(portfolioId, transaction) {
     case 'Withdraw Cash':
       if (transaction.deductFromCash) {
         if ((cash - transaction.value) < 0) {
-          throw 'Not enough cash';
+          throw 'Insufficient Funds';
         }
       }
       break;

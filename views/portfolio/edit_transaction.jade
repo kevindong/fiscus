@@ -1,6 +1,10 @@
 extends ../layout
 
 block content
+  if msg
+    .alert.alert-dismissable.alert-danger
+      button.close( type="button", data-dismiss="alert" ) ×
+      | #{msg}
   form(action=`/portfolio/${portfolioId}/transaction/edit`, method=`POST`)
     .card
       .card-body
