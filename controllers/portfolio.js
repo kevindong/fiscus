@@ -12,11 +12,21 @@ var CurrentSecurity = require('../models/CurrentSecurity');
 const rp = require('request-promise');
 const iextradingRoot = 'https://api.iextrading.com/1.0';
 
+// Dividend Global Variables
 let freshDividends = {};
-let divStocks = {};
 let totalFreshValue = 0;
 let unfilledDivs = {};
 let recIndx = 0;
+
+
+// Splits Global Variables
+let freshSplits = {};
+let unfilledSplits = {};
+let splits = {};
+let multiplier = 1;
+let shareMultiplier = 1;
+
+
 
 /**
  * GET /portfolio
@@ -576,6 +586,8 @@ async function updatePortfolioValue(transaction, userId) {
   }
 
 
+
+
   if(transaction.attributes.ticker === '$') {
 
     let data = await iexChartGet('GE', '1y');
@@ -678,10 +690,6 @@ async function updatePortfolioValue(transaction, userId) {
 
 
 
-
-
-
-
   // Get date from transaction
   let date = parseDateString(transaction.attributes.dateTransacted);
 
@@ -691,6 +699,14 @@ async function updatePortfolioValue(transaction, userId) {
   // Get some commonly used attributes
   let numShares = parseFloat(transaction.attributes.numShares);
   let ticker = transaction.attributes.ticker;
+
+
+  // TODO - Handle Splits
+  multiplier = 1;
+  shareMultiplier = 1;
+  await buildSplits(ticker, transaction.attributes.dateTransacted, data[data.length-1].date);
+
+
 
   // No portfolio yet
   if(portfolio.attributes.value === null) {
@@ -704,7 +720,7 @@ async function updatePortfolioValue(transaction, userId) {
     let values = [];
 
 
-    let i = getIndexOfDate(formatDate(date), data);
+    let i = getClosestDay(formatDate(date), data);
 
     // Create entries for every day up to the last day of trading
     while(i < data.length) {
@@ -713,23 +729,29 @@ async function updatePortfolioValue(transaction, userId) {
       // Add day to values string
       day.date = data[i].date;
 
+      // Swap multiplier
+      if(splits.hasOwnProperty(day.date)) {
+        multiplier *= splits[day.date].ratio;
+        shareMultiplier /= splits[day.date].ratio;
+      }
+
       // Chose between buy or sell
       switch(transaction.attributes.type) {
         case 'Buy':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares * shareMultiplier}];
 
           if(transaction.attributes.deductFromCash) {
-            day.cash = -transaction.attributes.value * numShares;
+            day.cash = -(transaction.attributes.value * numShares);
           } else {
             day.cash = 0;
           }
 
-          day.value = data[i].close * numShares;
+          day.value = data[i].close * multiplier * numShares * shareMultiplier;
 
 
           break;
         case 'Short':
-          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: -numShares}];
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: -(numShares * shareMultiplier)}];
 
           if(transaction.attributes.deductFromCash) {
             day.cash = transaction.attributes.value * numShares;
@@ -737,7 +759,7 @@ async function updatePortfolioValue(transaction, userId) {
             day.cash = 0;
           }
 
-          day.value = (-numShares * data[i].close);
+          day.value = (-numShares * shareMultiplier * data[i].close * multiplier);
           break;
       }
 
@@ -776,23 +798,29 @@ async function updatePortfolioValue(transaction, userId) {
       // Add day to values string
       day.date = data[i].date;
 
+      // Swap multiplier
+      if(splits.hasOwnProperty(day.date)) {
+        multiplier *= splits[day.date].ratio;
+        shareMultiplier /= splits[day.date].ratio;
+      }
+
       // Choose between buy or short
       switch(transaction.attributes.type) {
         case 'Buy':
-          day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares}];
+          day.stocks = [{ticker: transaction.attributes.ticker, shares: numShares * shareMultiplier}];
 
           if(transaction.attributes.deductFromCash) {
-            day.cash = -transaction.attributes.value * numShares;
+            day.cash = (-transaction.attributes.value * numShares);
           } else {
             day.cash = 0;
           }
 
-          day.value = data[i].close * numShares;
+          day.value = data[i].close * multiplier * numShares * shareMultiplier;
           break;
         case 'Short':
-          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: -numShares}];
-          day.cash = transaction.attributes.value * numShares;
-          day.value = (-1 * numShares * data[i].close);
+          day.stocks = [{ticker: ('$' + transaction.attributes.ticker), shares: -(numShares*shareMultiplier)}];
+          day.cash = transaction.attributes.value * multiplier * numShares * shareMultiplier;
+          day.value = (-1 * numShares * shareMultiplier * data[i].close * multiplier);
           break;
       }
 
@@ -812,13 +840,20 @@ async function updatePortfolioValue(transaction, userId) {
 
     // Update Values Already in Portfolio
     while(i < data.length) {
+
+      // Swap multiplier
+      if(splits.hasOwnProperty(data[i].date)) {
+        multiplier *= splits[data[i].date].ratio;
+        shareMultiplier /= splits[data[i].date].ratio;
+      }
+
       switch(transaction.attributes.type) {
         case 'Buy':
           found = false;
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ticker) {
 
-              values[j].stocks[k].shares += numShares;
+              values[j].stocks[k].shares += (numShares * shareMultiplier);
 
               found = true;
               break;
@@ -826,14 +861,14 @@ async function updatePortfolioValue(transaction, userId) {
           }
 
           if(!found) {
-            values[j].stocks.push({ticker: transaction.attributes.ticker, shares: numShares});
+            values[j].stocks.push({ticker: transaction.attributes.ticker, shares: numShares * shareMultiplier});
           }
 
           if(transaction.attributes.deductFromCash) {
-            values[j].cash -= transaction.attributes.value * numShares;
+            values[j].cash -= (transaction.attributes.value * numShares);
           }
 
-          values[j].value += data[i].close * numShares;
+          values[j].value += (data[i].close * multiplier * numShares * shareMultiplier);
 
           break;
         case 'Sell':
@@ -842,13 +877,13 @@ async function updatePortfolioValue(transaction, userId) {
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ticker) {
 
-              values[j].stocks[k].shares -= numShares;
+              values[j].stocks[k].shares -= (numShares * shareMultiplier);
 
               if(transaction.attributes.deductFromCash) {
-                values[j].cash += transaction.attributes.value * numShares;
+                values[j].cash += (transaction.attributes.value * numShares);
               }
 
-              values[j].value -= data[i].close * numShares;
+              values[j].value -= (data[i].close * multiplier * numShares * shareMultiplier);
 
               // Remove record if sold remaining shares
               if(values[j].stocks[k].shares === 0) {
@@ -873,7 +908,7 @@ async function updatePortfolioValue(transaction, userId) {
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ('$' + ticker)) {
 
-              values[j].stocks[k].shares -= numShares;
+              values[j].stocks[k].shares -= (numShares * shareMultiplier);
 
               if(transaction.attributes.deductFromCash) {
                 day.cash = values[j].cash += transaction.attributes.value * numShares;
@@ -884,14 +919,14 @@ async function updatePortfolioValue(transaction, userId) {
             }
           }
           if(!found) {
-            values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: -numShares});
+            values[j].stocks.push({ticker: ('$' + transaction.attributes.ticker), shares: -(numShares * shareMultiplier)});
 
             if(transaction.attributes.deductFromCash) {
-              values[j].cash += transaction.attributes.value * numShares;
+              values[j].cash += (transaction.attributes.value * numShares);
             }
           }
 
-          values[j].value -= data[i].close * numShares;
+          values[j].value -= (data[i].close * multiplier * numShares * shareMultiplier);
 
           break;
 
@@ -901,8 +936,8 @@ async function updatePortfolioValue(transaction, userId) {
           for(k in values[j].stocks) {
             if(values[j].stocks[k].ticker === ('$' + ticker)) {
 
-              values[j].stocks[k].shares += numShares;
-              values[j].value += data[i].close * numShares;
+              values[j].stocks[k].shares += (numShares * shareMultiplier);
+              values[j].value += (data[i].close * multiplier * numShares * shareMultiplier);
 
               // Remove record if sold remaining shares
               if(values[j].stocks[k].shares === 0) {
@@ -931,6 +966,7 @@ async function updatePortfolioValue(transaction, userId) {
     await addToCurrentSecurities(portfolio.attributes.id, transaction);
 
     // Commit to DB
+    portfolio.attributes.unfilledSplits = {unfilledSplits};
     portfolio.attributes.value = {values};
     await portfolio.save();
 
@@ -1349,8 +1385,8 @@ async function addToCurrentSecurities(portfolioId, transaction) {
     let newPosition = new CurrentSecurity({
       portfolioId: portfolioId,
       ticker: ticker,
-      numShares: transaction.attributes.numShares,
-      costBasis: transaction.attributes.value,
+      numShares: transaction.attributes.numShares * shareMultiplier,
+      costBasis: transaction.attributes.value / shareMultiplier
     });
 
     if(transaction.attributes.deductFromCash) {
@@ -1367,7 +1403,7 @@ async function addToCurrentSecurities(portfolioId, transaction) {
     if((transaction.attributes.type === 'Sell')
       || (transaction.attributes.type === 'Cover')) {
 
-      let sharesNow = currentSecurity.attributes.numShares - transaction.attributes.numShares;
+      let sharesNow = currentSecurity.attributes.numShares - (transaction.attributes.numShares * shareMultiplier);
 
       if(sharesNow === 0) {
         await currentSecurity.destroy();
@@ -1378,12 +1414,12 @@ async function addToCurrentSecurities(portfolioId, transaction) {
 
         return;
       } else {
-        currentSecurity.attributes.costBasis = ((currentSecurity.attributes.costBasis * currentSecurity.attributes.numShares) - (transaction.attributes.numShares * transaction.attributes.value)) / (sharesNow);
+        currentSecurity.attributes.costBasis = ((currentSecurity.attributes.costBasis * currentSecurity.attributes.numShares) - (transaction.attributes.numShares * shareMultiplier * transaction.attributes.value)) / (sharesNow);
         currentSecurity.attributes.numShares = sharesNow;
       }
     } else {
-      let sharesNow = currentSecurity.attributes.numShares + transaction.attributes.numShares;
-      currentSecurity.attributes.costBasis = ((currentSecurity.attributes.costBasis * currentSecurity.attributes.numShares) + (transaction.attributes.numShares * transaction.attributes.value)) / (sharesNow);
+      let sharesNow = currentSecurity.attributes.numShares + transaction.attributes.numShares * shareMultiplier;
+      currentSecurity.attributes.costBasis = ((currentSecurity.attributes.costBasis * currentSecurity.attributes.numShares) + (transaction.attributes.numShares  * shareMultiplier * transaction.attributes.value)) / (sharesNow);
       currentSecurity.attributes.numShares = sharesNow;
     }
 
@@ -1475,7 +1511,7 @@ async function getCurrentSecurities(portfolioId) {
       security.cost = Math.round((currentSecurities[i].costBasis * security.shares) * 100) / 100;
       security.value = Math.round(( security.shares * security.last) * 100) / 100;
       security.gain = Math.round((security.cost - security.value) * 100)/100;
-      security.pctGain = Math.round((security.gain / security.cost) * 100) / 100;
+      security.pctGain = Math.round((security.gain / security.cost) * 10000) / 100;
       security.dayGain = Math.round(security.change * security.shares * 100) / 100;
     } else {
       security.ticker = currentSecurities[i].ticker;
@@ -1741,9 +1777,8 @@ async function getDividendsData(ticker) {
     uri: `${iextradingRoot}/stock/${ticker}/dividends/1y`,
     json: true,
   });
-
-
 }
+
 
 async function updateDividends(trans, userId) {
   // if (type is buy)
@@ -1838,6 +1873,7 @@ async function keepDivsFresh(userId) {
     return true;
   }
 
+  // Get Unfilled Divs
   let temp = portfolio.attributes.unfilledDivs;
 
   if(!temp) {
@@ -1846,15 +1882,27 @@ async function keepDivsFresh(userId) {
     unfilledDivs = temp.unfilledDivs;
   }
 
+  // Get Unfilled Splits
+  let tempSp = portfolio.attributes.unfilledSplits;
+
+  if(!tempSp) {
+    unfilledSplits = {};
+  } else {
+    unfilledSplits = tempSp.unfilledSplits;
+  }
+
   let values = portfolio.attributes.value.values;
 
   handleUnfilled(values[values.length-1].date, values);
+  handleUnfilledSplits(values[values.length-1].date, values);
+
+  await buildFreshSplits(values[recIndx], values);
 
   await buildFreshDividends(values[recIndx], values);
 
   while(recIndx < ((values.length)-1)) {
 
-    //console.log(freshDividends);
+    await implementSplits(portfolio.attributes.id, recIndx, freshSplits[values[recIndx+1].date], values);
 
     implementDivs(recIndx, freshDividends[values[recIndx+1].date], values);
 
@@ -1865,6 +1913,7 @@ async function keepDivsFresh(userId) {
 
   // Commit to DB
   portfolio.attributes.unfilledDivs = {unfilledDivs};
+  portfolio.attributes.unfilledSplits = {unfilledSplits};
   portfolio.attributes.value = {values};
   await portfolio.save();
 
@@ -1898,7 +1947,7 @@ function buildFreshDividendObject(data, ticker, values) {
       amount: parseFloat(data[i].amount)
     };
 
-    if(freshDividends.hasOwnProperty(data.exDate)) {
+    if(freshDividends.hasOwnProperty(data[i].exDate)) {
       freshDividends[data[i].exDate].push(div);
     } else {
       freshDividends[data[i].exDate] = [];
@@ -1925,7 +1974,6 @@ function addToUnfilled(ticker, payday, date, amount) {
     amount: amount
   });
 }
-
 
 function formatDividends(data) {
 
@@ -2019,7 +2067,6 @@ function updateValuesWithDiv(dividend, values, type, shares) {
 
 
 
-
 async function buildFreshDividends(value, values) {
 
   let dataPromises = [];
@@ -2083,4 +2130,178 @@ function addDiv(dateIndx, divValue, values) {
   }
 
   totalFreshValue += divValue;
+}
+
+
+
+
+
+
+
+/* ~~~~~~~~ SPLITS FUNCTIONS ~~~~~~~~ */
+
+async function getSplitsData(ticker) {
+  return rp({
+    uri: `${iextradingRoot}/stock/${ticker}/splits/1y`,
+    json: true,
+  });
+}
+
+async function buildSplits(ticker, transDate, finalDate, values) {
+  let response = await getSplitsData(ticker);
+
+  for(let i in response) {
+    if(isAfter(response[i].exDate, transDate)) {
+      if(isAfterOrEqual(finalDate, response[i].paymentDate)) {
+        multiplier /= response[i].ratio;
+        addToSplits(response[i]);
+      } else {
+        let date = values[getDayBefore(response[i].exDate, values)].date;
+        addToUnfilledSplits(ticker, response[i], date);
+      }
+    }
+  }
+}
+
+function addToSplits(split) {
+  if(!splits.hasOwnProperty(split.paymentDate)) {
+    splits[split.paymentDate] = {
+      exDate: split.exDate,
+      ratio: split.ratio
+    };
+  }
+}
+
+function addToUnfilledSplits(ticker, split, date) {
+
+  if(!unfilledSplits.hasOwnProperty(split.paymentDate)) {
+    unfilledSplits[split.paymentDate] = [];
+  }
+
+  for(let i in unfilledSplits[split.paymentDate]) {
+    if(unfilledSplits[split.paymentDate][i].ticker === ticker) {
+      return;
+    }
+  }
+
+  unfilledSplits[split.paymentDate].push({
+    ticker: ticker,
+    date: date,
+    ratio: split.ratio
+  });
+}
+
+function handleUnfilledSplits(finDate, values) {
+  for(let splitday in unfilledSplits) {
+    if(isAfterOrEqual(finDate, splitday)) {
+      implementUnfilledSplits(splitday, unfilledSplits[splitday], values);
+      delete unfilledSplits[splitday];
+    }
+  }
+}
+
+function implementUnfilledSplits(splitday, splits, values) {
+
+  for(let i in splits) {
+
+    let dateIndx = getClosestDay(splitday, values);
+
+    let origShares = ownedShares(splits[i].date, splits[i].ticker);
+
+    let splitShares = origShares / splits[i].ratio;
+
+    addSplit(dateIndx, origShares, splitShares, values, splits[i].ticker);
+  }
+}
+
+function addSplit(dateIndx, origShares, splitShares, values, ticker) {
+  while(dateIndx < values.length) {
+    for(let i in values[dateIndx].stocks) {
+      if(values[dateIndx].stocks[i].ticker === ticker) {
+        values[dateIndx].stocks[i].shares -= (origShares - splitShares);
+      }
+    }
+
+    dateIndx++;
+  }
+
+  totalFreshValue += divValue;
+}
+
+async function buildFreshSplits(value, values) {
+
+  let dataPromises = [];
+  let indexedTickers = [];
+  let response = [];
+
+
+  for(let i in value.stocks) {
+    // Check if already have dividend data and download if not
+    dataPromises.push(getSplitsData(value.stocks[i].ticker));
+    indexedTickers.push(value.stocks[i].ticker);
+  }
+
+  // Wait for promises to resolve
+  try {
+    response = await Promise.all(dataPromises);
+  } catch (err) {
+    console.log('Failed to get dividend data');
+    return false;
+  }
+
+  for(let i in response) {
+    buildFreshSplitsObject(response[i], indexedTickers[i], values);
+  }
+}
+
+function buildFreshSplitsObject(data, ticker, values) {
+  for(let i in data) {
+
+    if(getClosestDay(data[i].paymentDate, values) === -1) {
+
+      addToUnfilledSplits(ticker, data[i], getDayBefore(data[i].exDate, values));
+
+      continue;
+    }
+
+    let split = {
+      ticker: ticker,
+      paymentDate: data[i].paymentDate,
+      ratio: parseFloat(data[i].ratio)
+    };
+
+    if(freshSplits.hasOwnProperty(data[i].exDate)) {
+      freshSplits[data[i].exDate].push(split);
+    } else {
+      freshSplits[data[i].exDate] = [];
+      freshSplits[data[i].exDate].push(split);
+    }
+  }
+}
+
+async function implementSplits(portfolioId, dayIndx, splits, values) {
+
+  //console.log(dividends);
+  for(let i in splits) {
+
+    let dateIndx = getClosestDay(splits[i].paymentDate, values);
+
+    let origShares = ownedShares(values[dayIndx], splits[i].ticker) ;
+
+    let splitShares = origShares  * splits[i].ratio;
+
+    addSplit(dateIndx, origShares, splitShares, values, splits[i].ticker);
+
+    await updateCurrentWithSplit(portfolioId, splits[i].ticker, splits[i].ratio );
+  }
+}
+
+
+async function updateCurrentWithSplit(portfolioId, ticker, ratio) {
+  let currentSecurity = await new CurrentSecurity({portfolioId: portfolioId, ticker: ticker}).fetch();
+
+  currentSecurity.attributes.numShares /= ratio;
+  currentSecurity.attributes.costBasis *= ratio;
+
+  await currentSecurity.save();
 }
