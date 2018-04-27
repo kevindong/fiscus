@@ -97,6 +97,7 @@ exports.tickerDetailsGet = async function (req, res) {
         if (watchlist != null) {
             watchlist = watchlist.attributes;
         }
+        const actualFinancials = (financials.financials) ? financials.financials[0] : {};
         res.render('details', {
             title: ticker + ' - Details',
             ticker,
@@ -111,7 +112,7 @@ exports.tickerDetailsGet = async function (req, res) {
             news,
             name,
             exchange,
-            financials: financials['financials'][0], //Pass only the most recent financial data... for now.
+            financials: actualFinancials, //Pass only the most recent financial data... for now.
             formatMoney, //function to format money, useful in view
             logoUrl: logo.url,
             keyStats,
