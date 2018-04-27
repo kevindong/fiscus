@@ -97,6 +97,7 @@ app.get('/margins', userController.toggleMargins);
 
 // ticker routes
 app.get('/ticker/details/:ticker', tickerController.tickerDetailsGet);
+app.get('/ticker/details/:ticker/compare/:compare', tickerController.tickerDetailsGet);
 app.get('/ticker/lookup', tickerController.lookupTickerGet);
 
 // admin console routes
