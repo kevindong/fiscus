@@ -1684,7 +1684,7 @@ exports.importTransaction = async (req, res) => {
   let file = req.files.file;
   let filePath = path.join(os.tmpdir(), file.md5);
   file.mv(filePath);
-  fs.readFile(filePath, function (err, data) {
+  fs.readFile(filePath, async (err, data) => {
     if (err) {
       console.error(err);
       req.flash('error', {msg: 'Errors occurred. Nothing was changed.'});
@@ -1693,7 +1693,7 @@ exports.importTransaction = async (req, res) => {
     // convert buffer to string
     data = data.toString('utf8');
     // parse CSV file
-    parse(data, {from: 2}, (err, output) => {
+    parse(data, {from: 2}, async (err, output) => {
       if (err) {
         console.error(err);
         req.flash('error', {msg: 'Errors occurred. Nothing was changed.'});
@@ -1709,7 +1709,7 @@ exports.importTransaction = async (req, res) => {
           return res.render(`error`, {msg, title: `Error`});
         }
         // store new transactions in database
-        output.forEach(t => {
+        output.forEach(async t => {
           try {
             let date = new Date(t[4]);
             let dateString = '' + date.getUTCFullYear() + '-' + ("0" + (date.getUTCMonth() + 1)).slice(-2) + '-' + ("0" + date.getUTCDate()).slice(-2);
@@ -1720,12 +1720,11 @@ exports.importTransaction = async (req, res) => {
               value: t[1],
               numShares: t[2],
               type: t[3],
-              dateTransacted: dateString
+              dateTransacted: dateString,
+              deductFromCash: (t[7] === 'TRUE')
             });
-            if (req.body.transactionId) {
-              transaction['id'] = req.body.transactionId;
-            }
-            transaction.save();
+            // save transaction in database
+            await addTransaction(transaction, req.user.attributes.id);
           } catch (err) {
             const msg = `An error occured while adding or editing a transaction.`;
             console.error(msg);
