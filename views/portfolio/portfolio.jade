@@ -6,6 +6,9 @@ block content
       .card-body
         div(style="height: 50vh; width: 100%;")
           canvas(id='normChart')
+    .row.justify-content-center.mb-3
+        .col-md-2.text-center
+            button(type='button', data-toggle='button', aria-pressed='false', autocomplete='off', id='autoFit').btn.btn-primary.btn-block Auto Fit (On)
   else
     br
 
@@ -194,9 +197,6 @@ block content
                   }
                 }],
                 yAxes: [{
-                  ticks: {
-                    beginAtZero: true
-                  },
                   scaleLabel: {
                     display: true,
                     labelString: "Value ($)"
@@ -204,6 +204,16 @@ block content
                 }]
               }
             }
+          });
+          $('#autoFit').click(function () {
+              if (myChart.options.scales.yAxes[0].ticks.beginAtZero) {
+                  myChart.options.scales.yAxes[0].ticks.beginAtZero = false;
+                  $(this).text("Auto Fit (On)");
+              } else {
+                  myChart.options.scales.yAxes[0].ticks.beginAtZero = true;
+                  $(this).text("Auto Fit (Off)");
+              }
+              myChart.update();
           })
         }
   #pieModal.modal.fade(tabindex='-1', role='dialog', aria-hidden='true')
