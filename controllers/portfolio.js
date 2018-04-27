@@ -383,12 +383,32 @@ exports.editTransactionPost = async function (req, res) {
     const msg = `An error occurred while adding or editing a transaction.`;
     console.error(msg);
     console.error(err);
-    return res.render(`portfolio/edit_transaction`, {
-      title: `Add Transaction`,
-      portfolioId: req.body.portfolioId,
-      transaction: undefined,
-      msg: err
-    });
+    if (req.body.transactionId) { // editing existing transaction
+      let transaction;
+      try {
+        transaction = await new Transaction({ id: req.body.transactionId }).fetch();
+        yahooName = await TickerController.yahooNameExchangeGet(transaction.attributes.ticker);
+      } catch (err) {
+        const msg = `An error occured while getting the transaction to be edited.`;
+        console.error(msg);
+        console.error(err);
+        return res.render(`error`, { msg, title: `Error` });
+      }
+      return res.render(`portfolio/edit_transaction`, {
+        title: `Add Transaction`,
+        portfolioId: req.params.portfolioId,
+        transaction: transaction.attributes,
+        yahooName: `${transaction.attributes.ticker} - ${yahooName.name}`,
+        msg: err
+      });
+    } else { // creating new transaction
+      return res.render(`portfolio/edit_transaction`, {
+        title: `Add Transaction`,
+        portfolioId: req.params.portfolioId,
+        transaction: undefined,
+        msg: err
+      });
+    }
   }
 
   req.flash('success', {msg: 'Your transaction has been added/modified.'});
@@ -464,6 +484,8 @@ async function editTransaction(transaction, oldId, userId) {
     throw 'Could not find transaction to delete';
   }
 
+  let oldCopy = oldTransaction.toJSON();
+
   let newType;
 
   switch(oldTransaction.attributes.type) {
@@ -495,7 +517,7 @@ async function editTransaction(transaction, oldId, userId) {
     await updatePortfolioValue(cancelTrans, userId);
     await updateDividends(cancelTrans, userId);
   } catch(err) {
-    throw err;
+    throw "Failure when editing transaction";
   }
 
 
@@ -510,6 +532,22 @@ async function editTransaction(transaction, oldId, userId) {
   try{
     await addTransaction(oldTransaction, userId);
   } catch (err) {
+    let doubleCancelTrans= new Transaction({
+      ticker: oldCopy.ticker,
+      type: oldCopy.type,
+      dateTransacted: formatDate(oldCopy.dateTransacted),
+      numShares: oldCopy.numShares,
+      value: oldCopy.value,
+      deductFromCash: oldCopy.deductFromCash
+    });
+
+    try {
+      await updatePortfolioValue(doubleCancelTrans, userId);
+      await updateDividends(doubleCancelTrans, userId);
+    } catch(err) {
+      throw "Failure when resetting portfolio";
+    }
+
     throw err;
   }
 
