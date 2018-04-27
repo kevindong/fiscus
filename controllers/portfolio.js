@@ -720,7 +720,7 @@ async function updatePortfolioValue(transaction, userId) {
 
     // Check if the requested transaction is valid for a user with no current values
     if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
-      throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
+      throw 'Cannot ' + transaction.attributes.type + ' without a valid position';
     }
 
     // Initialize empty values array
@@ -797,7 +797,7 @@ async function updatePortfolioValue(transaction, userId) {
     while(isAfter(values[j].date, data[i].date)) {
       if((transaction.attributes.type === 'Sell') || (transaction.attributes.type === 'Cover')) {
         console.log('Bad Transaction Type');
-        throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
+        throw 'Cannot ' + transaction.attributes.type + ' without a valid position';
       }
 
       let day = {}; // Initialize empty object
@@ -904,7 +904,7 @@ async function updatePortfolioValue(transaction, userId) {
 
           if(!found) {
             console.log('Couldn\'t find stock to sell');
-            throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
+            throw 'Cannot ' + transaction.attributes.type + ' without a valid position';
           }
 
 
@@ -962,7 +962,7 @@ async function updatePortfolioValue(transaction, userId) {
 
           if(!found) {
             console.log('Couldn\'t find stock to cover');
-            throw 'Cannot ' + transaction.attributes.type + 'without a valid position';
+            throw 'Cannot ' + transaction.attributes.type + ' without a valid position';
           }
           break;
       }

@@ -15,10 +15,12 @@ const redisSetAsync = promisify(redisClient.set).bind(redisClient);
 
 /*
  * GET /ticker/details/[ticker]
+ * GET /ticker/details/[ticker]/compare/[compare]
  * Displays the details page for [ticker]
  */
 exports.tickerDetailsGet = async function (req, res) {
     const ticker = req.params.ticker;
+    const compare = req.params.compare;
     try {
         const [
             ohlc, 
@@ -97,6 +99,42 @@ exports.tickerDetailsGet = async function (req, res) {
         if (watchlist != null) {
             watchlist = watchlist.attributes;
         }
+        // if compare exists, fetch its data too
+        let dayData2;
+        let chartYearData2;
+        let chartYear2;
+        let chartMonth2;
+        let chartThrMonth2;
+        let chartDay2;
+        if (compare) {
+            [
+                dayData2,
+                chartYearData2
+            ] = await Promise.all([
+                exports.iexDayChartGet(compare, '1d'),
+                exports.iexChartGet(compare, '1y')
+            ]);
+            // refractor data as percentage gains
+            let start = chartYearData[0].y;
+            let start2 = chartYearData2[0].close;
+            chartYearData.forEach(e => {
+                e.y = 100 * (e.y - start) / start;
+            });
+            chartYearData2.forEach(e => {
+                e.close = 100 * (e.close - start2) / start2;
+            });
+            [
+                chartYear2,
+                chartMonth2,
+                chartThrMonth2
+            ] = await Promise.all([
+                formatData(chartYearData2),
+                getMonthData(chartYearData2),
+                getThrMonthData(chartYearData2)
+            ]);
+            chartDay2 = formatDayData(dayData2);
+        }
+
         const actualFinancials = (financials.financials) ? financials.financials[0] : {};
         res.render('details', {
             title: ticker + ' - Details',
@@ -125,8 +163,14 @@ exports.tickerDetailsGet = async function (req, res) {
             chartColor: JSON.stringify(color),
             baseline: JSON.stringify(baseline),
             annotations: JSON.stringify(formattedDividends.concat(formattedSplits)),
-            validDayGraph: validDayGraph,
-            watchlist: watchlist
+            validDayGraph,
+            watchlist,
+            // optional parameters for compare view only
+            compare,
+            chartDay2: (chartDay2) ? JSON.stringify(chartDay2) : 'undefined',
+            chartMonth2: (chartMonth2) ? JSON.stringify(chartMonth2) : 'undefined',
+            chartThrMonth2: (chartThrMonth2) ? JSON.stringify(chartThrMonth2) : 'undefined',
+            chartYear2: (chartYear2) ? JSON.stringify(chartYear2) : 'undefined'
         });
     } catch (e) {
         console.log(e);
